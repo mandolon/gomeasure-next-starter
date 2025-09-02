@@ -2,10 +2,9 @@
 import StepNav from '../components/StepNav';
 import { useOrder } from '../context';
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
 
-// Dynamically import map component to avoid SSR issues
-const MapComponent = dynamic(() => import('./MapComponent'), { ssr: false });
+// Import map component directly
+import MapComponent from './MapComponent';
 
 interface AddressResult {
   primary: string;
