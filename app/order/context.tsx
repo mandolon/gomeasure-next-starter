@@ -14,6 +14,10 @@ interface OrderState {
   // Schedule
   date: string;
   time: string;
+  dateInt: string;
+  timeInt: string;
+  dateExt: string;
+  timeExt: string;
   
   // Contact
   contactName: string;
@@ -41,6 +45,10 @@ const initialState: OrderState = {
   areaBothExt: 0,
   date: '',
   time: '',
+  dateInt: '',
+  timeInt: '',
+  dateExt: '',
+  timeExt: '',
   contactName: '',
   contactPhone: '',
   contactEmail: '',
