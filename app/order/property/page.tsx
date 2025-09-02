@@ -2,37 +2,150 @@
 import StepNav from '../components/StepNav';
 import { useOrder } from '../context';
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+
+// Dynamically import map component to avoid SSR issues
+const MapComponent = dynamic(() => import('./MapComponent'), { ssr: false });
+
+interface AddressResult {
+  primary: string;
+  city: string;
+  zip: string;
+  lat: string;
+  lon: string;
+}
 
 export default function PropertyPage() {
   const { state, updateState } = useOrder();
   const [mapVisible, setMapVisible] = useState(false);
   const [currentSqFt, setCurrentSqFt] = useState(0);
-  const [autocompleteItems, setAutocompleteItems] = useState<any[]>([]);
+  const [autocompleteItems, setAutocompleteItems] = useState<AddressResult[]>([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [debounceId, setDebounceId] = useState<NodeJS.Timeout | null>(null);
+  const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | undefined>();
 
-  // Address autocomplete
-  const handleAddressChange = async (value: string) => {
-    updateState({ address: value });
+  const CA_VIEWBOX = '-124.48,32.53,-114.13,42.01';
+
+  // Enhanced address autocomplete with California filtering
+  const searchCA = async (query: string): Promise<AddressResult[]> => {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&countrycodes=us&bounded=1&viewbox=${CA_VIEWBOX}&q=${encodeURIComponent(query)}`;
     
-    if (value.length > 3) {
-      try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=us&limit=8&q=${encodeURIComponent(value + ', California')}`);
-        const results = await response.json();
-        setAutocompleteItems(results.slice(0, 5));
-        setShowAutocomplete(true);
-      } catch (e) {
-        setAutocompleteItems([]);
-      }
-    } else {
-      setShowAutocomplete(false);
+    try {
+      const response = await fetch(url, { 
+        headers: { 'Accept-Language': 'en' } 
+      });
+      if (!response.ok) return [];
+      
+      const data = await response.json();
+      const filtered = data.filter((d: any) => {
+        const a = d.address || {};
+        const inCA = (a.state === 'California') || (a.state_code === 'CA');
+        const isAddr = ['house', 'residential', 'building', 'yes', 'address', 'road'].includes(d.type) || a.house_number;
+        return inCA && isAddr;
+      });
+      
+      return filtered.map((d: any) => {
+        const a = d.address || {};
+        const num = a.house_number || '';
+        const road = a.road || a.pedestrian || a.footway || a.path || '';
+        const primary = (num && road) ? `${num} ${road}` : (d.name || d.display_name.split(',')[0]);
+        const city = a.city || a.town || a.village || a.hamlet || a.municipality || a.county || '';
+        const zip = a.postcode || '';
+        return { primary, city, zip, lat: d.lat, lon: d.lon };
+      });
+    } catch(e) {
+      return [];
     }
   };
 
-  const selectAddress = (item: any) => {
-    const displayName = item.display_name.replace(', United States', '');
-    updateState({ address: displayName });
+  const handleAddressChange = (value: string) => {
+    updateState({ address: value });
+    
+    // Clear existing debounce
+    if (debounceId) {
+      clearTimeout(debounceId);
+    }
+    
+    if (value.length < 3) {
+      setShowAutocomplete(false);
+      setAutocompleteItems([]);
+      return;
+    }
+    
+    // Debounce search
+    const newDebounceId = setTimeout(async () => {
+      try {
+        const results = await searchCA(value);
+        setAutocompleteItems(results);
+        setShowAutocomplete(true);
+        setActiveIndex(-1);
+      } catch(e) {
+        setShowAutocomplete(false);
+      }
+    }, 300);
+    
+    setDebounceId(newDebounceId);
+  };
+
+  const selectAddress = (index: number) => {
+    const item = autocompleteItems[index];
+    if (!item) return;
+    
+    const fullAddress = `${item.primary}, ${item.city}, CA${item.zip ? ' ' + item.zip : ''}`;
+    updateState({ address: fullAddress });
     setShowAutocomplete(false);
     setAutocompleteItems([]);
+    setActiveIndex(-1);
+    
+    // Set coordinates for map centering
+    setAddressCoords({ 
+      lat: parseFloat(item.lat), 
+      lng: parseFloat(item.lon) 
+    });
+    
+    // Auto-open map
+    if (!mapVisible) {
+      setMapVisible(true);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!autocompleteItems.length) return;
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % autocompleteItems.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev - 1 + autocompleteItems.length) % autocompleteItems.length);
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0) {
+        e.preventDefault();
+        selectAddress(activeIndex);
+      }
+    } else if (e.key === 'Escape') {
+      setShowAutocomplete(false);
+      setActiveIndex(-1);
+    }
+  };
+
+  // Click outside to close
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('#ac')) {
+        setShowAutocomplete(false);
+        setActiveIndex(-1);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const onAreaCalculated = (sqFt: number) => {
+    setCurrentSqFt(sqFt);
   };
 
   const toggleMap = () => {
@@ -44,6 +157,7 @@ export default function PropertyPage() {
     
     const scope = state.capScope;
     if (scope === 'interior-exterior') {
+      // For Interior & Exterior: save to first empty field, or exterior if both full
       if (!state.areaBothInt) {
         updateState({ areaBothInt: currentSqFt });
       } else if (!state.areaBothExt) {
@@ -52,6 +166,7 @@ export default function PropertyPage() {
         updateState({ areaBothExt: currentSqFt });
       }
     } else {
+      // For single scopes, save to their input
       if (scope === 'interior') {
         updateState({ areaInt: currentSqFt });
       } else if (scope === 'exterior') {
@@ -83,37 +198,48 @@ export default function PropertyPage() {
           type="text"
           value={state.address}
           onChange={(e) => handleAddressChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            if (autocompleteItems.length) setShowAutocomplete(true);
+          }}
           placeholder="Start typing your address..."
           autoComplete="street-address"
           aria-autocomplete="list"
           aria-expanded={showAutocomplete}
+          aria-activedescendant={activeIndex >= 0 ? `addr-opt-${activeIndex}` : undefined}
           role="combobox"
           required
         />
         
-        {showAutocomplete && autocompleteItems.length > 0 && (
+        {showAutocomplete && (
           <div id="addr-list" className="ac-panel" role="listbox" aria-label="Address suggestions" style={{ display: 'block' }}>
-            {autocompleteItems.map((item, idx) => (
-              <div
-                key={idx}
-                className="ac-item"
-                onClick={() => selectAddress(item)}
-                role="option"
-              >
-                <svg className="ac-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                  <circle cx="12" cy="10" r="3"/>
-                </svg>
-                <div className="ac-text">
-                  <div className="ac-title">
-                    {item.display_name.split(',')[0]}
-                  </div>
-                  <div className="ac-sub">
-                    {item.display_name.replace(', United States', '')}
+            {autocompleteItems.length > 0 ? (
+              autocompleteItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={`ac-item ${idx === activeIndex ? 'is-active' : ''}`}
+                  onClick={() => selectAddress(idx)}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                  onMouseLeave={() => setActiveIndex(-1)}
+                  role="option"
+                  id={`addr-opt-${idx}`}
+                >
+                  <svg className="ac-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                  </svg>
+                  <div className="ac-text">
+                    <div className="ac-title">{item.primary}</div>
+                    <div className="ac-sub">{item.city}, CA{item.zip ? ' ' + item.zip : ''}</div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="ac-item" style={{ cursor: 'default' }}>
+                <div className="ac-text">
+                  <div className="ac-sub">No results found</div>
+                </div>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
@@ -303,11 +429,14 @@ export default function PropertyPage() {
 
       {/* Map */}
       <div id="mapWrap" className={`map-wrap ${mapVisible ? 'open' : ''}`}>
-        <div className="map-instructions">Draw a polygon around your property</div>
-        <div id="map"></div>
+        <MapComponent 
+          isVisible={mapVisible} 
+          onAreaCalculated={onAreaCalculated}
+          addressCoords={addressCoords}
+        />
         
         <div className="map-results">
-          <div className="measured-value"><span id="areaOut">{currentSqFt}</span> sq ft</div>
+          <div className="measured-value"><span id="areaOut">{currentSqFt.toLocaleString()}</span> sq ft</div>
           <button id="saveBtn" className="btn-save" type="button" disabled={currentSqFt === 0} onClick={saveMapArea}>
             Save to area field
           </button>
