@@ -35,14 +35,6 @@ export default function PropertyPage() {
     setAutocompleteItems([]);
   };
 
-  // Map functionality would be implemented here using useEffect and Leaflet
-  useEffect(() => {
-    if (mapVisible && typeof window !== 'undefined') {
-      // Initialize Leaflet map here
-      // This would match the original map implementation
-    }
-  }, [mapVisible]);
-
   const toggleMap = () => {
     setMapVisible(!mapVisible);
   };
@@ -69,80 +61,83 @@ export default function PropertyPage() {
     setCurrentSqFt(0);
   };
 
+  const handleEstimateLink = (e: React.MouseEvent) => {
+    e.preventDefault();
+    alert('Demo: Property size estimation guide');
+  };
+
   return (
     <section className="card">
       <StepNav />
       
-      <h2 tabIndex={-1}>Property details</h2>
-      <p className="muted">Tell us about the property we&apos;ll be scanning.</p>
-
-      {/* Address */}
-      <div className="field">
-        <label className="label">Property address</label>
-        <div className="ac-wrap">
-          <input
-            className={`input ${!state.address.trim() ? 'error' : ''}`}
-            type="text"
-            value={state.address}
-            onChange={(e) => handleAddressChange(e.target.value)}
-            placeholder="Enter the property address"
-          />
-          
-          {showAutocomplete && autocompleteItems.length > 0 && (
-            <div className="ac-panel" style={{ display: 'block' }}>
-              {autocompleteItems.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="ac-item"
-                  onClick={() => selectAddress(item)}
-                >
-                  <svg className="ac-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                    <circle cx="12" cy="10" r="3"/>
-                  </svg>
-                  <div className="ac-text">
-                    <div className="ac-title">
-                      {item.display_name.split(',')[0]}
-                    </div>
-                    <div className="ac-sub">
-                      {item.display_name.replace(', United States', '')}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Property Type */}
+      {/* Section 1: Address */}
       <div className="section-header">
         <div className="section-number">1</div>
-        <div className="section-title">Property type</div>
+        <div className="section-title">Property Address</div>
       </div>
       
-      <div className="choices choices--2x">
+      <div className="ac-wrap" id="ac">
+        <input
+          id="address"
+          className="input"
+          type="text"
+          value={state.address}
+          onChange={(e) => handleAddressChange(e.target.value)}
+          placeholder="Start typing your address..."
+          autoComplete="street-address"
+          aria-autocomplete="list"
+          aria-expanded={showAutocomplete}
+          role="combobox"
+          required
+        />
+        
+        {showAutocomplete && autocompleteItems.length > 0 && (
+          <div id="addr-list" className="ac-panel" role="listbox" aria-label="Address suggestions" style={{ display: 'block' }}>
+            {autocompleteItems.map((item, idx) => (
+              <div
+                key={idx}
+                className="ac-item"
+                onClick={() => selectAddress(item)}
+                role="option"
+              >
+                <svg className="ac-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <div className="ac-text">
+                  <div className="ac-title">
+                    {item.display_name.split(',')[0]}
+                  </div>
+                  <div className="ac-sub">
+                    {item.display_name.replace(', United States', '')}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Section 2: Property Type */}
+      <div className="section-header">
+        <div className="section-number">2</div>
+        <div className="section-title">Property Type</div>
+      </div>
+      
+      <div className="choices choices--2x" role="radiogroup" aria-label="Property type">
         <div className="choice-wrap">
           <input
             className="choice-input"
             type="radio"
-            id="residential"
             name="propType"
+            id="prop-res"
             value="residential"
             checked={state.propType === 'residential'}
             onChange={(e) => updateState({ propType: e.target.value as any })}
           />
-          <label className="choice" htmlFor="residential">
-            <div className="dot-sel"></div>
-            <div>
-              <svg className="icon" viewBox="0 0 24 24">
-                <path d="M3 21h18"/>
-                <path d="M5 21V7l8-4v18"/>
-                <path d="M19 21V11l-6-4"/>
-              </svg>
-              <div className="title">Residential</div>
-              <div className="desc">Single-family homes, condos, apartments</div>
-            </div>
+          <label className="choice" htmlFor="prop-res">
+            <span className="dot-sel" aria-hidden="true"></span>
+            <span className="title">Residential</span>
           </label>
         </div>
         
@@ -150,192 +145,183 @@ export default function PropertyPage() {
           <input
             className="choice-input"
             type="radio"
-            id="commercial"
             name="propType"
+            id="prop-com"
             value="commercial"
             checked={state.propType === 'commercial'}
             onChange={(e) => updateState({ propType: e.target.value as any })}
           />
-          <label className="choice" htmlFor="commercial">
-            <div className="dot-sel"></div>
-            <div>
-              <svg className="icon" viewBox="0 0 24 24">
-                <path d="M3 21h18"/>
-                <path d="M4 21V10a2 2 0 012-2h12a2 2 0 012 2v11"/>
-                <path d="M9 9v1"/>
-                <path d="M15 9v1"/>
-                <path d="M9 15v1"/>
-                <path d="M15 15v1"/>
-              </svg>
-              <div className="title">Commercial</div>
-              <div className="desc">Office buildings, retail spaces, warehouses</div>
-            </div>
+          <label className="choice" htmlFor="prop-com">
+            <span className="dot-sel" aria-hidden="true"></span>
+            <span className="title">Commercial</span>
           </label>
         </div>
       </div>
 
-      {/* Capture Scope */}
+      {/* Section 3: Capture Scope */}
       <div className="section-header">
-        <div className="section-number">2</div>
-        <div className="section-title">Capture scope</div>
+        <div className="section-number">3</div>
+        <div className="section-title">What would you like captured?</div>
       </div>
       
-      <div className="choices">
+      <div className="choices choices--2x" role="radiogroup" aria-label="Capture scope">
+        {/* Interior */}
         <div className="choice-wrap">
           <input
             className="choice-input"
             type="radio"
-            id="interior"
             name="capScope"
+            id="cap-int"
             value="interior"
             checked={state.capScope === 'interior'}
             onChange={(e) => updateState({ capScope: e.target.value as any })}
           />
-          <label className="choice" htmlFor="interior">
-            <div className="dot-sel"></div>
+          <label className="choice" htmlFor="cap-int">
+            <span className="dot-sel" aria-hidden="true"></span>
+            <svg className="icon" viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M8 50 V18 l24-10 24 10 v32 H8z M8 26 h48" strokeWidth="2"/>
+              <path d="M20 34 h12 v12 H20z" strokeWidth="2"/>
+            </svg>
             <div>
-              <svg className="icon" viewBox="0 0 24 24">
-                <path d="M3 9V7a2 2 0 012-2h14a2 2 0 012 2v2"/>
-                <path d="M3 11h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8z"/>
-                <path d="M12 11v8"/>
-              </svg>
-              <div className="title">Interior only</div>
-              <div className="desc">Indoor spaces, rooms, floor plans</div>
+              <div className="title">Interior Only</div>
+              <div className="desc">3D capture of interior rooms and circulation. Fast and precise for planning + measurements.</div>
+
               <div className="area-row">
                 <input
-                  className={`input mini ${state.capScope === 'interior' && !(state.areaInt > 0) ? 'error' : ''}`}
+                  id="area-int"
+                  className="input mini"
                   type="number"
+                  inputMode="numeric"
                   value={state.areaInt || ''}
                   onChange={(e) => updateState({ areaInt: Number(e.target.value) })}
-                  placeholder="0"
+                  placeholder="Enter area"
+                  min="0"
                 />
-                <span className="unit">sq ft</span>
+                <span className="unit">sq&nbsp;ft</span>
               </div>
             </div>
           </label>
         </div>
-        
+
+        {/* Exterior */}
         <div className="choice-wrap">
           <input
             className="choice-input"
             type="radio"
-            id="exterior"
             name="capScope"
+            id="cap-ext"
             value="exterior"
             checked={state.capScope === 'exterior'}
             onChange={(e) => updateState({ capScope: e.target.value as any })}
           />
-          <label className="choice" htmlFor="exterior">
-            <div className="dot-sel"></div>
+          <label className="choice" htmlFor="cap-ext">
+            <span className="dot-sel" aria-hidden="true"></span>
+            <svg className="icon" viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M8 44 V28 l12-8 12 8 v16z M40 40 l10-6 8 6 v6 H40z" strokeWidth="2"/>
+            </svg>
             <div>
-              <svg className="icon" viewBox="0 0 24 24">
-                <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/>
-              </svg>
-              <div className="title">Exterior only</div>
-              <div className="desc">Building facades, landscapes, site plans</div>
+              <div className="title">Exterior Only</div>
+              <div className="desc">3D capture of facades and site context—ideal for elevations, setbacks, and envelope checks.</div>
+
               <div className="area-row">
                 <input
-                  className={`input mini ${state.capScope === 'exterior' && !(state.areaExt > 0) ? 'error' : ''}`}
+                  id="area-ext"
+                  className="input mini"
                   type="number"
+                  inputMode="numeric"
                   value={state.areaExt || ''}
                   onChange={(e) => updateState({ areaExt: Number(e.target.value) })}
-                  placeholder="0"
+                  placeholder="Enter area"
+                  min="0"
                 />
-                <span className="unit">sq ft</span>
+                <span className="unit">sq&nbsp;ft</span>
               </div>
             </div>
           </label>
         </div>
-        
+
+        {/* Interior & Exterior */}
         <div className="choice-wrap span-2">
           <input
             className="choice-input"
             type="radio"
-            id="interior-exterior"
             name="capScope"
+            id="cap-both"
             value="interior-exterior"
             checked={state.capScope === 'interior-exterior'}
             onChange={(e) => updateState({ capScope: e.target.value as any })}
           />
-          <label className="choice" htmlFor="interior-exterior">
-            <div className="dot-sel"></div>
+          <label className="choice" htmlFor="cap-both">
+            <span className="dot-sel" aria-hidden="true"></span>
+            <svg className="icon" viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M6 50 V26 l14-10 14 10 v24z M34 42 l10-8 14 8 v8 H34z M6 50 h52" strokeWidth="2"/>
+            </svg>
             <div>
-              <svg className="icon" viewBox="0 0 24 24">
-                <path d="M3 9V7a2 2 0 012-2h14a2 2 0 012 2v2"/>
-                <path d="M3 11h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8z"/>
-                <path d="M12 11v8"/>
-                <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3"/>
-              </svg>
-              <div className="title">Interior &amp; exterior</div>
-              <div className="desc">Complete property documentation inside and out</div>
-              <div className="area-row--split">
-                <div className="mini-field">
-                  <span className="labelline">
-                    Interior <em className="unit-top">sq ft</em>
-                  </span>
+              <div className="title">Interior &amp; Exterior</div>
+              <div className="desc">Complete capture—interior spaces plus walkable exterior for coordination and BIM-ready context.</div>
+
+              <div className="area-row area-row--split">
+                <label className="mini-field" htmlFor="area-both-int">
+                  <span className="labelline"><strong>Interior</strong><em className="unit-top">(sq ft)</em></span>
                   <input
-                    className={`input mini ${state.capScope === 'interior-exterior' && !(state.areaBothInt > 0) ? 'error' : ''}`}
+                    id="area-both-int"
+                    className="input mini"
                     type="number"
+                    inputMode="numeric"
                     value={state.areaBothInt || ''}
                     onChange={(e) => updateState({ areaBothInt: Number(e.target.value) })}
-                    placeholder="0"
+                    placeholder="Enter area"
+                    min="0"
                   />
-                </div>
-                <div className="mini-field">
-                  <span className="labelline">
-                    Exterior <em className="unit-top">sq ft</em>
-                  </span>
+                </label>
+
+                <label className="mini-field" htmlFor="area-both-ext">
+                  <span className="labelline"><strong>Exterior</strong><em className="unit-top">(sq ft)</em></span>
                   <input
-                    className={`input mini ${state.capScope === 'interior-exterior' && !(state.areaBothExt > 0) ? 'error' : ''}`}
+                    id="area-both-ext"
+                    className="input mini"
                     type="number"
+                    inputMode="numeric"
                     value={state.areaBothExt || ''}
                     onChange={(e) => updateState({ areaBothExt: Number(e.target.value) })}
-                    placeholder="0"
+                    placeholder="Enter area"
+                    min="0"
                   />
-                </div>
+                </label>
               </div>
             </div>
           </label>
         </div>
       </div>
 
-      {/* Map Estimator */}
-      <div className="section-header">
-        <div className="section-number">3</div>
-        <div className="section-title">Area estimator (optional)</div>
-      </div>
-      
+      {/* Map Toggle */}
       <div className="map-toggle">
-        <button className="map-toggle-btn" onClick={toggleMap}>
-          📐 Use interactive map to measure area
+        <button id="openEstimator" className="map-toggle-btn" type="button" onClick={toggleMap}>
+          Measure on map
         </button>
       </div>
-      
-      <div className={`map-wrap ${mapVisible ? 'open' : ''}`}>
-        <div className="map-instructions">
-          Use the polygon tool to trace the area you want to scan. The measurement will automatically calculate.
-        </div>
+
+      {/* Map */}
+      <div id="mapWrap" className={`map-wrap ${mapVisible ? 'open' : ''}`}>
+        <div className="map-instructions">Draw a polygon around your property</div>
         <div id="map"></div>
+        
         <div className="map-results">
-          <div>
-            <strong>Measured area: </strong>
-            <span className="measured-value">{currentSqFt.toLocaleString()} sq ft</span>
-          </div>
-          <button 
-            className="btn-save" 
-            disabled={currentSqFt === 0}
-            onClick={saveMapArea}
-          >
-            Save to form
+          <div className="measured-value"><span id="areaOut">{currentSqFt}</span> sq ft</div>
+          <button id="saveBtn" className="btn-save" type="button" disabled={currentSqFt === 0} onClick={saveMapArea}>
+            Save to area field
           </button>
         </div>
       </div>
 
       <div className="hint">
-        <p className="muted">
-          <strong>Need help with measurements?</strong> Use our interactive map tool above or refer to your property records. 
-          <a href="#" className="underline">Learn more about area estimation</a>
-        </p>
+        <a href="#" className="underline" id="estimateLink" onClick={handleEstimateLink}>
+          How to estimate property size
+        </a>
+      </div>
+
+      <div className="actions">
+        <button className="btn btn-primary" data-next="schedule">Next</button>
       </div>
     </section>
   );
