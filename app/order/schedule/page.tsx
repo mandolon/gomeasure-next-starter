@@ -1,342 +1,205 @@
 'use client';
-import StepNav from '../components/StepNav';
-import { useOrder } from '../context';
-import { useState, useEffect } from 'react';
 
-const TIMES = ["8:00 AM","8:30 AM","9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM","2:00 PM","2:30 PM","3:00 PM","3:30 PM","4:00 PM"];
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useOrder } from '../../context';
 
-interface ScheduleSection {
-  key: string;
-  label: string;
-  expanded: boolean;
-  selectedDate: string | null;
-  selectedTime: string | null;
+type ScopeKey = 'int' | 'ext';
+
+const TIMES = [
+  '8:00 AM','8:30 AM','9:00 AM','9:30 AM',
+  '10:00 AM','10:30 AM','11:00 AM','11:30 AM',
+  '12:00 PM','12:30 PM','1:00 PM','1:30 PM',
+  '2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM'
+];
+
+function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function monthLabel(d: Date) { return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }); }
+const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function Picker({ scope, title }: { scope: ScopeKey; title: string }) {
+  const { state, updateState } = useOrder();
+
+  const today = useMemo(() => { const t = new Date(); t.setHours(0,0,0,0); return t; }, []);
+  const currentMonth = useMemo(() => startOfMonth(today), [today]);
+  const nextMonth = useMemo(() => startOfMonth(new Date(today.getFullYear(), today.getMonth() + 1, 1)), [today]);
+
+  const [view, setView] = useState<Date>(currentMonth);
+  const [singleNavIsNext, setSingleNavIsNext] = useState(true);
+  const [open, setOpen] = useState(true);
+
+  // pick from context
+  const selectedISO = scope === 'int' ? state.dateInt : state.dateExt;
+  const selectedTime = scope === 'int' ? state.timeInt : state.timeExt;
+
+  useEffect(() => {
+    setSingleNavIsNext(view.getTime() === currentMonth.getTime());
+  }, [view, currentMonth]);
+
+  const days = useMemo(() => {
+    const first = new Date(view.getFullYear(), view.getMonth(), 1);
+    const last = new Date(view.getFullYear(), view.getMonth() + 1, 0);
+    const startOffset = first.getDay();
+    const cells: Array<{ type:'head'|'blank'|'day'; date?: Date }> = [];
+
+    weekdays.forEach(() => cells.push({ type: 'head' }));
+    for (let i = 0; i < startOffset; i++) cells.push({ type: 'blank' });
+    for (let d = 1; d <= last.getDate(); d++) {
+      cells.push({ type: 'day', date: new Date(view.getFullYear(), view.getMonth(), d) });
+    }
+    return cells;
+  }, [view]);
+
+  function pickDate(date: Date) {
+    if (date < today) return;
+    if (date.getDay() === 0 || date.getDay() === 6) return;
+    const iso = date.toISOString().slice(0, 10);
+    if (scope === 'int') updateState({ dateInt: iso, timeInt: '' });
+    else updateState({ dateExt: iso, timeExt: '' });
+  }
+
+  function pickTime(time: string) {
+    if (!selectedISO) { alert('Please pick a date first.'); return; }
+    if (scope === 'int') updateState({ timeInt: time });
+    else updateState({ timeExt: time });
+    setOpen(false);
+  }
+
+  const summary = selectedISO && selectedTime
+    ? `Scheduled for ${new Date(selectedISO).toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'})} at ${selectedTime}`
+    : 'Select a date and time';
+
+  return (
+    <>
+      <button
+        className="accordion"
+        data-open={open ? 'true' : 'false'}
+        onClick={() => setOpen(v => !v)}
+        type="button"
+        aria-expanded={open}
+      >
+        <div className="summary-stack">
+          <div className="scope-label">{title}</div>
+          <div className="scheduled-line">{summary}</div>
+        </div>
+        <svg className="caret" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+      </button>
+
+      <div className={`collapse ${open ? 'open' : ''}`} aria-hidden={!open}>
+        <div className="calendar-container">
+          <div className="calendar-header">
+            <div className="calendar-month">{monthLabel(view)}</div>
+            <div className="nav-single">
+              <button
+                className="nav-btn"
+                onClick={() => setView(singleNavIsNext ? nextMonth : currentMonth)}
+              >
+                {singleNavIsNext ? 'Next ›' : '‹ Back'}
+              </button>
+            </div>
+          </div>
+
+          <div className="calendar-grid">
+            {weekdays.map((d) => (
+              <div key={`h-${d}`} className="calendar-day-header">{d}</div>
+            ))}
+
+            {days.slice(7).map((cell, i) => {
+              if (cell.type === 'blank') return <div key={`b-${i}`} />;
+              if (cell.type === 'day' && cell.date) {
+                const d = cell.date;
+                const isPast = d < today;
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                const iso = d.toISOString().slice(0,10);
+                const isSelected = selectedISO === iso;
+
+                const className =
+                  'calendar-day ' +
+                  (isPast || isWeekend ? 'disabled' : 'available') +
+                  (isSelected ? ' selected' : '');
+
+                return (
+                  <div
+                    key={`d-${iso}`}
+                    className={className}
+                    onClick={() => pickDate(d)}
+                    role="button"
+                    aria-label={d.toDateString()}
+                  >
+                    <span className="day-num">{d.getDate()}</span>
+                  </div>
+                );
+              }
+              return null;
+            })}
+          </div>
+        </div>
+
+        <div className="field">
+          <div className="label">Available times</div>
+          <div className="times">
+            {TIMES.map(t => (
+              <button
+                key={t}
+                type="button"
+                className="time"
+                data-selected={selectedTime === t ? 'true' : undefined}
+                onClick={() => pickTime(t)}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="disclaimer">
+          <strong>Booking Policy:</strong> Appointments can be rescheduled up to 24 hours before the scheduled time.
+          Same-day cancellations may incur a fee. We’ll confirm your appointment 24 hours in advance.
+        </div>
+      </div>
+    </>
+  );
 }
 
 export default function SchedulePage() {
-  const { state, updateState } = useOrder();
-  const [mounted, setMounted] = useState(false);
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  
-  // Initialize sections based on capture scope
-  const initializeSections = (): ScheduleSection[] => {
-    const sections: ScheduleSection[] = [];
-    
-    if (state.capScope === 'interior') {
-      sections.push({
-        key: 'int',
-        label: 'Interior scan',
-        expanded: true,
-        selectedDate: state.date || null,
-        selectedTime: state.time || null
-      });
-    } else if (state.capScope === 'exterior') {
-      sections.push({
-        key: 'ext',
-        label: 'Exterior scan',
-        expanded: true,
-        selectedDate: state.date || null,
-        selectedTime: state.time || null
-      });
-    } else if (state.capScope === 'interior-exterior') {
-      sections.push(
-        {
-          key: 'int',
-          label: 'Interior scan',
-          expanded: true,
-          selectedDate: state.dateInt || null,
-          selectedTime: state.timeInt || null
-        },
-        {
-          key: 'ext',
-          label: 'Exterior scan',
-          expanded: true,
-          selectedDate: state.dateExt || null,
-          selectedTime: state.timeExt || null
-        }
-      );
-    } else {
-      // Fallback: show a generic scheduling section if no scope is selected
-      sections.push({
-        key: 'default',
-        label: 'Property scan',
-        expanded: true,
-        selectedDate: state.date || null,
-        selectedTime: state.time || null
-      });
-    }
-    
-    return sections;
-  };
-
-  const [sections, setSections] = useState<ScheduleSection[]>([]);
-  const [viewMonths, setViewMonths] = useState<{[key: string]: Date}>({});
-  const [onNextFlags, setOnNextFlags] = useState<{[key: string]: boolean}>({});
-
-  // Initialize after mount to prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-    const initialSections = initializeSections();
-    setSections(initialSections);
-    
-    const initialMonths: {[key: string]: Date} = {};
-    const initialFlags: {[key: string]: boolean} = {};
-    
-    initialSections.forEach(section => {
-      initialMonths[section.key] = new Date(currentMonth);
-      initialFlags[section.key] = true;
-    });
-    
-    setViewMonths(initialMonths);
-    setOnNextFlags(initialFlags);
-  }, []);
-
-  // Show loading state until mounted
-  if (!mounted) {
-    return (
-      <section className="card">
-        <StepNav />
-        <h2 tabIndex={-1}>Choose a time</h2>
-        <p className="muted">Choose a start time. The site visit takes about 4 hours 30 minutes.</p>
-        <div>Loading...</div>
-      </section>
-    );
-  }
-
-  // Re-initialize sections when capture scope changes
-  useEffect(() => {
-    const newSections = initializeSections();
-    setSections(newSections);
-    
-    const newMonths: {[key: string]: Date} = {};
-    const newFlags: {[key: string]: boolean} = {};
-    
-    newSections.forEach(section => {
-      newMonths[section.key] = new Date(currentMonth);
-      newFlags[section.key] = true;
-    });
-    
-    setViewMonths(newMonths);
-    setOnNextFlags(newFlags);
-  }, [state.capScope]);
-
-  const fmtMonth = (date: Date) => {
-    return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  };
-
-  const scheduledText = (selectedDate: string | null, selectedTime: string | null) => {
-    if (!selectedDate || !selectedTime) return "Select a date and time";
-    const datePart = new Date(selectedDate).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-    return `Scheduled for ${datePart} at ${selectedTime}`;
-  };
-
-  const toggleAccordion = (sectionKey: string) => {
-    setSections(prev => prev.map(section => 
-      section.key === sectionKey 
-        ? { ...section, expanded: !section.expanded }
-        : section
-    ));
-  };
-
-  const handleNavigation = (sectionKey: string) => {
-    const isNext = onNextFlags[sectionKey];
-    const newMonth = isNext ? nextMonth : currentMonth;
-    
-    setViewMonths(prev => ({ ...prev, [sectionKey]: new Date(newMonth) }));
-    setOnNextFlags(prev => ({ ...prev, [sectionKey]: !isNext }));
-  };
-
-  const selectDate = (sectionKey: string, date: Date) => {
-    const dateISO = date.toISOString().slice(0, 10);
-    
-    setSections(prev => prev.map(section =>
-      section.key === sectionKey
-        ? { ...section, selectedDate: dateISO }
-        : section
-    ));
-
-    // Update global state based on section
-    if (state.capScope === 'interior-exterior') {
-      if (sectionKey === 'int') {
-        updateState({ dateInt: dateISO });
-      } else if (sectionKey === 'ext') {
-        updateState({ dateExt: dateISO });
-      }
-    } else {
-      updateState({ date: dateISO });
-    }
-  };
-
-  const selectTime = (sectionKey: string, time: string) => {
-    const section = sections.find(s => s.key === sectionKey);
-    if (!section?.selectedDate) {
-      alert('Please pick a date first.');
-      return;
-    }
-
-    setSections(prev => prev.map(s =>
-      s.key === sectionKey
-        ? { ...s, selectedTime: time, expanded: false } // Auto-collapse after time selection
-        : s
-    ));
-
-    // Update global state based on section
-    if (state.capScope === 'interior-exterior') {
-      if (sectionKey === 'int') {
-        updateState({ timeInt: time });
-      } else if (sectionKey === 'ext') {
-        updateState({ timeExt: time });
-      }
-    } else {
-      updateState({ time });
-    }
-  };
-
-  const buildCalendarDays = (sectionKey: string) => {
-    const viewMonth = viewMonths[sectionKey];
-    if (!viewMonth) return [];
-
-    const section = sections.find(s => s.key === sectionKey);
-    const days = [];
-    
-    const first = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
-    const last = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0);
-    const startOffset = first.getDay();
-
-    // Empty cells for days before month starts
-    for (let i = 0; i < startOffset; i++) {
-      days.push({ type: 'empty' });
-    }
-
-    // Days of the month
-    for (let d = 1; d <= last.getDate(); d++) {
-      const date = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), d);
-      const isPast = date < today;
-      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-      const isSelected = section?.selectedDate === date.toISOString().slice(0, 10);
-
-      days.push({
-        type: 'day',
-        date,
-        day: d,
-        isAvailable: !isPast && !isWeekend,
-        isSelected
-      });
-    }
-
-    return days;
-  };
+  const router = useRouter();
 
   return (
-    <section className="card">
-      <StepNav />
-      
-      <h2 tabIndex={-1}>Choose a time</h2>
-      <p className="muted">Choose a start time. The site visit takes about 4 hours 30 minutes.</p>
+    <div className="grid">
+      <section className="card">
+        <h2>Choose a time</h2>
+        <p className="muted">Choose a start time. The site visit takes about 4 hours 30 minutes.</p>
 
-      {sections.map(section => (
-        <div key={section.key}>
-          <button 
-            className="accordion" 
-            data-acc={section.key}
-            aria-expanded={section.expanded}
-            type="button"
-            onClick={() => toggleAccordion(section.key)}
-          >
-            <div className="summary-stack">
-              <div className="scope-label">{section.label}</div>
-              <div className="scheduled-line">
-                {scheduledText(section.selectedDate, section.selectedTime)}
-              </div>
-            </div>
-            <svg className="caret" width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2"/>
-            </svg>
-          </button>
-          
-          <div 
-            className={`collapse ${section.expanded ? 'open' : ''}`}
-            aria-hidden={!section.expanded}
-          >
-            <div className="calendar-container">
-              <div className="calendar-header">
-                <div className="calendar-month">
-                  {viewMonths[section.key] ? fmtMonth(viewMonths[section.key]) : '—'}
-                </div>
-                <div className="nav-single">
-                  <button 
-                    className="nav-btn" 
-                    onClick={() => handleNavigation(section.key)}
-                  >
-                    {onNextFlags[section.key] ? 'Next ›' : '‹ Back'}
-                  </button>
-                </div>
-              </div>
-              
-              <div className="calendar-grid">
-                {/* Day headers */}
-                {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(day => (
-                  <div key={day} className="calendar-day-header">
-                    {day}
-                  </div>
-                ))}
-                
-                {/* Calendar days */}
-                {buildCalendarDays(section.key).map((item, index) => {
-                  if (item.type === 'empty') {
-                    return <div key={`empty-${index}`}></div>;
-                  }
-                  
-                  return (
-                    <div
-                      key={index}
-                      className={`calendar-day ${
-                        item.isAvailable ? 'available' : 'disabled'
-                      } ${item.isSelected ? 'selected' : ''}`}
-                      onClick={() => {
-                        if (item.isAvailable && item.date) {
-                          selectDate(section.key, item.date);
-                        }
-                      }}
-                    >
-                      <span className="day-num">{item.day}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <div className="field">
-              <div className="label">Available times</div>
-              <div className="times">
-                {TIMES.map(time => (
-                  <button
-                    key={time}
-                    className="time"
-                    data-selected={section.selectedTime === time}
-                    onClick={() => selectTime(section.key, time)}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="disclaimer">
-              <strong>Booking Policy:</strong> Appointments can be rescheduled up to 24 hours before the scheduled time. Same-day cancellations may incur a fee. We&apos;ll confirm your appointment 24 hours in advance.
-            </div>
-          </div>
+        <Picker scope="int" title="Interior scan" />
+        <Picker scope="ext" title="Exterior scan" />
+      </section>
+
+      <aside className="sidebar">
+        <div className="card">
+          <h2 style={{ fontSize: 18, margin: '0 0 6px' }}>Schedule checklist</h2>
+          <ul className="checklist">
+            <li><span className="check">✓</span> Date and time selected</li>
+            <li><span className="check">✓</span> Site accessibility confirmed</li>
+            <li><span className="check">✓</span> Weather backup plan in place</li>
+            <li><span className="check">✓</span> Equipment requirements verified</li>
+          </ul>
         </div>
-      ))}
 
-      <div className="actions">
-        <button className="btn btn-ghost">Back</button>
-        <button className="btn btn-primary">Next</button>
-      </div>
-    </section>
+        <div className="card" id="estimateCard">
+          <h2 style={{ fontSize: 18, margin: '0 0 6px' }}>Estimate</h2>
+          <div className="price-row"><span className="price-label">Interior</span><span className="price-value">$250.00</span></div>
+          <div className="price-row"><span className="price-label">Exterior</span><span className="price-value">$250.00</span></div>
+          <div className="price-row price-total"><span>Total</span><span>$500.00</span></div>
+          <p className="small" style={{ marginTop: 6 }}>*Tax not included</p>
+        </div>
+
+        <div className="action-row">
+          <button className="btn btn-ghost" onClick={() => router.back()}>Back</button>
+          <button className="btn btn-primary" onClick={() => router.push('/order/contact')}>Next</button>
+        </div>
+      </aside>
+    </div>
   );
 }
