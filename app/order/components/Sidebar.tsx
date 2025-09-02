@@ -77,7 +77,7 @@ export default function Sidebar() {
       {currentStep === 'property' && (
         <div className="card" aria-label="What's Included">
           <h2 style={{ fontSize: '18px' }}>What's included</h2>
-          <ul className="included-list">
+          <ul className="checklist">
             {(state.propType === 'commercial' ? commercialList : residentialList).map((item, index) => (
               <li key={index}>
                 <span className="check">✓</span> {item}
