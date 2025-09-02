@@ -1,7 +1,7 @@
 run = "npm run dev"
 entrypoint = "index.js"
 hidden = [".config", "package-lock.json", ".next", ".swc"]
-modules = ["nodejs-20"]
+modules = ["nodejs-22"]
 
 [nix]
 channel = "stable-24_11"
@@ -12,7 +12,7 @@ NEXT_TELEMETRY_DISABLED = "1"
 [deployment]
 build = ["npm", "run", "build"]
 run = ["npm", "run", "start"]
-deploymentTarget = "autoscale"
+deploymentTarget = "cloudrun"
 
 [[ports]]
 localPort = 3000
@@ -27,7 +27,7 @@ localPort = 3002
 externalPort = 3002
 
 [[ports]]
-localPort = 3000
+localPort = 5000
 externalPort = 80
 
 [workflows]
@@ -55,13 +55,13 @@ args = "Next.js Development Server"
 name = "Next.js Development Server"
 author = "agent"
 
-[workflows.workflow.metadata]
-outputType = "webview"
-
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
-waitForPort = 3000
+args = "npm run dev -- --port 5000"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [agent]
 expertMode = true

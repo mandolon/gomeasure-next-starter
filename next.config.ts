@@ -1,28 +1,8 @@
 import type { NextConfig } from "next";
+import { env } from "process";
 
 const nextConfig: NextConfig = {
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-store, must-revalidate'
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'SAMEORIGIN'
-          }
-        ]
-      }
-    ];
-  },
-  experimental: {
-    allowedRevalidateHeaderKeys: []
-  },
-  // Configure allowed dev origins for Replit environment
-  allowedDevOrigins: ['127.0.0.1', 'localhost']
+  allowedDevOrigins: [env.REPLIT_DOMAINS?.split(",")[0] || "127.0.0.1"],
 };
 
 export default nextConfig;

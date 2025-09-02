@@ -1,0 +1,590 @@
+/* styles/AddressAutocomplete.module.css */
+.acWrap {
+  position: relative;
+}
+
+.input {
+  width: 100%;
+  height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #e6e7eb;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font: 400 16px/1.2 Figtree, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  background: #fff;
+}
+
+.input:focus {
+  border-color: #db0f83;
+  box-shadow: 0 0 0 2px rgba(219, 15, 131, 0.1);
+}
+
+.input.error {
+  border-color: crimson;
+}
+
+.acPanel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 5000;
+  background: #fff;
+  border: 1px solid #e6e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: 320px;
+  overflow: auto;
+}
+
+.acItem {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.15s;
+}
+
+.acItem:last-child {
+  border-bottom: 0;
+}
+
+.acItem:hover,
+.acItem.isActive {
+  background: #f8f9fa;
+}
+
+.acIcon {
+  width: 20px;
+  height: 20px;
+  color: #db0f83;
+  flex-shrink: 0;
+}
+
+.acText {
+  flex: 1;
+  min-width: 0;
+}
+
+.acTitle {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acSub {
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===================================== */
+/* styles/MapEstimator.module.css */
+.mapWrap {
+  margin-top: 16px;
+}
+
+.mapInstructions {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+.map {
+  width: 100%;
+  height: 400px;
+  border: 1px solid #e6e7eb;
+  border-radius: 10px;
+  background: #f0f0f0;
+}
+
+@media (max-width: 680px) {
+  .map {
+    height: 500px;
+  }
+}
+
+.mapResults {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border: 1px solid #e6e7eb;
+  border-radius: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.measuredValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: #db0f83;
+}
+
+.btnSave {
+  padding: 8px 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #db0f83;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btnSave:hover {
+  background: #c00e75;
+}
+
+.btnSave:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* ===================================== */
+/* styles/PropertyDetails.module.css */
+.card {
+  background: #fff;
+  border: 1px solid #e6e7eb;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 16px;
+}
+
+.sectionNumber {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #db0f83;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #3a3f45;
+}
+
+.choices2x {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 520px) {
+  .choices2x {
+    grid-template-columns: 1fr;
+  }
+}
+
+.span2 {
+  grid-column: 1 / -1;
+}
+
+.choiceWrap {
+  position: relative;
+}
+
+.choiceInput {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid #e6e7eb;
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+  min-height: 56px;
+}
+
+.choice:hover {
+  border-color: #cfd2d6;
+}
+
+.choiceInput:checked + .choice {
+  border-color: #db0f83;
+  background: rgba(219, 15, 131, 0.05);
+}
+
+.dotSel {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #cfd2d6;
+  border-radius: 50%;
+  margin-top: 2px;
+  position: relative;
+}
+
+.choiceInput:checked + .choice .dotSel {
+  border-color: #db0f83;
+  background: #db0f83;
+}
+
+.choiceInput:checked + .choice .dotSel::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.icon {
+  width: 40px;
+  height: 40px;
+  stroke: #db0f83;
+  fill: none;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.desc {
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.input {
+  width: 100%;
+  height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #e6e7eb;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font: 400 16px/1.2 Figtree, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  background: #fff;
+}
+
+.input:focus {
+  border-color: #db0f83;
+  box-shadow: 0 0 0 2px rgba(219, 15, 131, 0.1);
+}
+
+.mini {
+  height: 40px;
+  border-radius: 8px;
+}
+
+.areaRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.areaRowSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.unit {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.miniField .labelline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0 0 4px;
+}
+
+.unitTop {
+  font-style: normal;
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.mapToggle {
+  margin: 16px 0;
+}
+
+.mapToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid #db0f83;
+  border-radius: 8px;
+  background: #fff;
+  color: #db0f83;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mapToggleBtn:hover {
+  background: #db0f83;
+  color: #fff;
+}
+
+.hint {
+  margin-top: 20px;
+}
+
+.underline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 14px;
+}
+
+/* ===================================== */
+/* styles/Contact.module.css */
+.card {
+  background: #fff;
+  border: 1px solid #e6e7eb;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.card p {
+  margin: 0 0 12px;
+  color: #3a3f45;
+  font-size: 16px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  margin: 10px 0;
+}
+
+.label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: #3a3f45;
+  margin: 8px 0 6px;
+  font-weight: 600;
+}
+
+.input, .textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #e6e7eb;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 16px;
+  color: #171717;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-weight: 400;
+}
+
+.input {
+  height: 44px;
+}
+
+.textarea {
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.input:focus, .textarea:focus {
+  border-color: #db0f83;
+  box-shadow: 0 0 0 3px rgba(219, 15, 131, 0.12);
+}
+
+.contactToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.contactToggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #db0f83;
+}
+
+.contactToggle label {
+  margin: 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.secondContact {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.secondContact h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.prepLink {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(219, 15, 131, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(219, 15, 131, 0.1);
+}
+
+.prepLink a {
+  color: #db0f83;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.prepLink a:hover {
+  text-decoration: underline;
+}
+
+/* ===================================== */
+/* styles/Review.module.css */
+.card {
+  background: #fff;
+  border: 1px solid #e6e7eb;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.reviewGrid {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.reviewSection {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.reviewSection h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reviewItem {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0;
+}
+
+.reviewLabel {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.reviewValue {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.checkboxGroup {
+  margin: 20px 0;
+}
+
+.checkboxWrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.checkboxWrap input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #db0f83;
+  cursor: pointer;
+}
+
+.checkboxWrap label {
+  margin: 0;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.checkboxWrap label a {
+  color: #db0f83;
+  text-decoration: underline;
+}

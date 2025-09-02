@@ -1,0 +1,254 @@
+/* Schedule.module.css */
+.card {
+  background: #fff;
+  border: 1px solid #e6e7eb;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 3px 0 6px;
+}
+
+/* Accordion */
+.accordion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e6e7eb;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.summaryStack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+.scopeLabel {
+  font-weight: 700;
+  color: #000;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.scheduledLine {
+  font-size: 14px;
+  color: #3a3f45;
+}
+
+.caret {
+  opacity: 0.55;
+  transition: transform 0.18s ease;
+}
+
+.caretExpanded {
+  transform: rotate(90deg);
+}
+
+/* Smooth open/close */
+.collapse {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: scaleY(0.98);
+  transform-origin: top;
+  transition: max-height 0.35s ease, opacity 0.25s ease, transform 0.25s ease;
+  will-change: max-height, opacity, transform;
+}
+
+.open {
+  max-height: 1400px;
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+/* Calendar */
+.calendarContainer {
+  border: 1px solid #e6e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.calendarMonth {
+  font-size: 14px;
+  font-weight: 600;
+  color: #171717;
+}
+
+.navSingle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.navBtn {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid #e6e7eb;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-size: 12px;
+  color: #3a3f45;
+}
+
+.navBtn:hover {
+  background: rgba(219, 15, 131, 0.05);
+  border-color: #db0f83;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.calendarDayHeader {
+  padding: 2px 0 6px;
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #6b7280;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.calendarDay {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 36px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #171717;
+}
+
+.dayNum {
+  position: relative;
+  z-index: 1;
+}
+
+.available::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 26px;
+  height: 26px;
+  border: 2px solid rgba(219, 15, 131, 0.3);
+  border-radius: 50%;
+  transition: all 0.15s;
+  background: transparent;
+  z-index: 0;
+}
+
+.available:hover::before {
+  box-shadow: 0 0 0 3px rgba(219, 15, 131, 0.1);
+}
+
+.disabled {
+  cursor: not-allowed;
+  color: #6b7280;
+  opacity: 0.45;
+}
+
+.disabled::before {
+  display: none;
+}
+
+.selected {
+  color: #fff;
+  font-weight: 600;
+}
+
+.selected::before {
+  background: #db0f83;
+  border-color: #db0f83;
+}
+
+/* Times */
+.field {
+  margin: 10px 0 6px;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  color: #3a3f45;
+}
+
+.times {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+
+@media (max-width: 760px) {
+  .times {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.time {
+  padding: 10px;
+  text-align: center;
+  font-size: 14px;
+  border: 1px solid #e6e7eb;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.time:hover {
+  background: rgba(219, 15, 131, 0.10);
+}
+
+.timeSelected {
+  background: #db0f83;
+  color: #fff;
+  border-color: #db0f83;
+}
+
+/* Booking policy */
+.disclaimer {
+  margin: 10px 0 0;
+  padding: 10px;
+  border: 1px solid #e6e7eb;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #3a3f45;
+}
