@@ -72,23 +72,40 @@ export default function SchedulePage() {
     return sections;
   };
 
-  const [sections, setSections] = useState<ScheduleSection[]>(initializeSections);
-  const [viewMonths, setViewMonths] = useState<{[key: string]: Date}>({});
-  const [onNextFlags, setOnNextFlags] = useState<{[key: string]: boolean}>({});
-
-  // Initialize view months for each section
-  useEffect(() => {
+  const [sections, setSections] = useState<ScheduleSection[]>(() => initializeSections());
+  const [viewMonths, setViewMonths] = useState<{[key: string]: Date}>(() => {
     const initialMonths: {[key: string]: Date} = {};
-    const initialFlags: {[key: string]: boolean} = {};
-    
-    sections.forEach(section => {
+    const initialSections = initializeSections();
+    initialSections.forEach(section => {
       initialMonths[section.key] = new Date(currentMonth);
+    });
+    return initialMonths;
+  });
+  const [onNextFlags, setOnNextFlags] = useState<{[key: string]: boolean}>(() => {
+    const initialFlags: {[key: string]: boolean} = {};
+    const initialSections = initializeSections();
+    initialSections.forEach(section => {
       initialFlags[section.key] = true;
     });
+    return initialFlags;
+  });
+
+  // Re-initialize sections when capture scope changes
+  useEffect(() => {
+    const newSections = initializeSections();
+    setSections(newSections);
     
-    setViewMonths(initialMonths);
-    setOnNextFlags(initialFlags);
-  }, [sections.length]);
+    const newMonths: {[key: string]: Date} = {};
+    const newFlags: {[key: string]: boolean} = {};
+    
+    newSections.forEach(section => {
+      newMonths[section.key] = new Date(currentMonth);
+      newFlags[section.key] = true;
+    });
+    
+    setViewMonths(newMonths);
+    setOnNextFlags(newFlags);
+  }, [state.capScope]);
 
   const fmtMonth = (date: Date) => {
     return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
