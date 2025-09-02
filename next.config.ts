@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
           {
             key: 'Cache-Control',
             value: 'no-store, must-revalidate'
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN'
           }
         ]
       }
@@ -16,7 +20,9 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     allowedRevalidateHeaderKeys: []
-  }
+  },
+  // Configure allowed dev origins for Replit environment
+  allowedDevOrigins: ['127.0.0.1', 'localhost']
 };
 
 export default nextConfig;
