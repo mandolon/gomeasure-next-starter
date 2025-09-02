@@ -24,9 +24,28 @@ export default function StickyFooter() {
     }
     
     if (currentStep === 'schedule') {
-      if (!state.date || !state.time) {
-        alert('Please choose a date and time.');
-        return;
+      // Validate scheduling based on capture scope
+      if (state.capScope === 'interior') {
+        if (!state.dateInt || !state.timeInt) {
+          alert('Please choose a date and time for the interior scan.');
+          return;
+        }
+      } else if (state.capScope === 'exterior') {
+        if (!state.dateExt || !state.timeExt) {
+          alert('Please choose a date and time for the exterior scan.');
+          return;
+        }
+      } else if (state.capScope === 'interior-exterior') {
+        if (!state.dateInt || !state.timeInt || !state.dateExt || !state.timeExt) {
+          alert('Please choose dates and times for both interior and exterior scans.');
+          return;
+        }
+      } else {
+        // Fallback for single scope
+        if (!state.date || !state.time) {
+          alert('Please choose a date and time.');
+          return;
+        }
       }
     }
     

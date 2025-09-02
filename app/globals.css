@@ -426,6 +426,75 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .time:hover{background:rgba(219,15,131,.10)}
 .time[data-selected="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
 
+/* Contact & Review */
+.field { margin: 10px 0; }
+.label { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--ink-7); }
+.select, .textarea {
+  width: 100%; padding: 12px 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: #fff; font-size: 16px; color: var(--ink);
+  outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+  font-weight: 400;
+}
+.select:focus, .textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(219,15,131,.12);
+}
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media(max-width:720px) { .row { grid-template-columns: 1fr; } }
+
+/* Second contact toggle */
+.contact-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.contact-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.contact-toggle label {
+  margin: 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.second-contact {
+  display: none;
+  margin-top: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.second-contact.show {
+  display: block;
+}
+
+/* Preparation link */
+.prep-link {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(219,15,131,.05);
+  border-radius: 8px;
+  border: 1px solid rgba(219,15,131,.1);
+}
+.prep-link a {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+.prep-link a:hover {
+  text-decoration: underline;
+}
+
 /* Booking policy disclaimer */
 .disclaimer{
   margin:10px 0 0;padding:10px;border:1px solid var(--line);
