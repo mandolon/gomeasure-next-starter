@@ -15,6 +15,7 @@ interface ScheduleSection {
 
 export default function SchedulePage() {
   const { state, updateState } = useOrder();
+  const [mounted, setMounted] = useState(false);
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -72,23 +73,39 @@ export default function SchedulePage() {
     return sections;
   };
 
-  const [sections, setSections] = useState<ScheduleSection[]>(() => initializeSections());
-  const [viewMonths, setViewMonths] = useState<{[key: string]: Date}>(() => {
-    const initialMonths: {[key: string]: Date} = {};
+  const [sections, setSections] = useState<ScheduleSection[]>([]);
+  const [viewMonths, setViewMonths] = useState<{[key: string]: Date}>({});
+  const [onNextFlags, setOnNextFlags] = useState<{[key: string]: boolean}>({});
+
+  // Initialize after mount to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
     const initialSections = initializeSections();
+    setSections(initialSections);
+    
+    const initialMonths: {[key: string]: Date} = {};
+    const initialFlags: {[key: string]: boolean} = {};
+    
     initialSections.forEach(section => {
       initialMonths[section.key] = new Date(currentMonth);
-    });
-    return initialMonths;
-  });
-  const [onNextFlags, setOnNextFlags] = useState<{[key: string]: boolean}>(() => {
-    const initialFlags: {[key: string]: boolean} = {};
-    const initialSections = initializeSections();
-    initialSections.forEach(section => {
       initialFlags[section.key] = true;
     });
-    return initialFlags;
-  });
+    
+    setViewMonths(initialMonths);
+    setOnNextFlags(initialFlags);
+  }, []);
+
+  // Show loading state until mounted
+  if (!mounted) {
+    return (
+      <section className="card">
+        <StepNav />
+        <h2 tabIndex={-1}>Choose a time</h2>
+        <p className="muted">Choose a start time. The site visit takes about 4 hours 30 minutes.</p>
+        <div>Loading...</div>
+      </section>
+    );
+  }
 
   // Re-initialize sections when capture scope changes
   useEffect(() => {

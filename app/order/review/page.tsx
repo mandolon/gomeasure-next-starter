@@ -1,12 +1,17 @@
 'use client';
 import StepNav from '../components/StepNav';
 import { useOrder } from '../context';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function ReviewPage() {
   const { state } = useOrder();
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePayment, setAgreePayment] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const formatScope = (scope: string) => {
     return scope === 'interior-exterior' ? 'Interior & Exterior' : 

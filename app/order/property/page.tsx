@@ -428,7 +428,7 @@ export default function PropertyPage() {
       </div>
 
       {/* Map */}
-      <div id="mapWrap" className={`map-wrap ${mapVisible ? 'open' : ''}`}>
+      <div id="mapWrap" className={`map-wrap ${mapVisible ? 'open' : ''}`} suppressHydrationWarning>
         <MapComponent 
           isVisible={mapVisible} 
           onAreaCalculated={onAreaCalculated}
@@ -449,9 +449,6 @@ export default function PropertyPage() {
         </a>
       </div>
 
-      <div className="actions">
-        <button className="btn btn-primary" data-next="schedule">Next</button>
-      </div>
     </section>
   );
 }

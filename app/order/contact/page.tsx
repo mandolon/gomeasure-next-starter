@@ -1,11 +1,17 @@
 'use client';
 import StepNav from '../components/StepNav';
 import { useOrder } from '../context';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function ContactPage() {
   const { state, updateState } = useOrder();
-  const [showSecondContact, setShowSecondContact] = useState(state.hasSecondContact);
+  const [showSecondContact, setShowSecondContact] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setShowSecondContact(state.hasSecondContact);
+  }, [state.hasSecondContact]);
 
   const toggleSecondContact = () => {
     const newValue = !showSecondContact;

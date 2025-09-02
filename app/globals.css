@@ -231,8 +231,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 }
 .unit-top{font-style:normal;font-weight:600;color:var(--ink-5);font-size:var(--font-xs)}
 
-.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
-@media(max-width:720px){.actions{display:none}}
+.actions{display:none}
 
 .hint{margin-top:20px}
 
@@ -551,7 +550,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   }
 }
 
-/* Sticky footer */
+/* Sticky footer - only show on mobile */
 .sticky-footer {
   position: fixed;
   bottom: 0;
@@ -561,6 +560,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   border-top: 1px solid var(--line);
   padding: 12px 20px;
   z-index: 1000;
+  display: none;
 }
 
 .sticky-content {
@@ -572,12 +572,28 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   gap: 16px;
 }
 
+/* Show sticky footer only on mobile */
 @media (max-width: 721px) {
   :root {
     --sticky-h: 72px;
   }
   
   .sticky-footer {
+    display: block;
     padding: 16px 20px;
+  }
+}
+
+/* Desktop actions - aligned right under estimate card */
+.desktop-actions {
+  display: none;
+  margin-top: 16px;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (min-width: 722px) {
+  .desktop-actions {
+    display: flex;
   }
 }
