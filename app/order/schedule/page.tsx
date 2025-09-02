@@ -58,6 +58,15 @@ export default function SchedulePage() {
           selectedTime: state.timeExt || null
         }
       );
+    } else {
+      // Fallback: show a generic scheduling section if no scope is selected
+      sections.push({
+        key: 'default',
+        label: 'Property scan',
+        expanded: true,
+        selectedDate: state.date || null,
+        selectedTime: state.time || null
+      });
     }
     
     return sections;
@@ -120,7 +129,7 @@ export default function SchedulePage() {
     if (state.capScope === 'interior-exterior') {
       if (sectionKey === 'int') {
         updateState({ dateInt: dateISO });
-      } else {
+      } else if (sectionKey === 'ext') {
         updateState({ dateExt: dateISO });
       }
     } else {
@@ -145,7 +154,7 @@ export default function SchedulePage() {
     if (state.capScope === 'interior-exterior') {
       if (sectionKey === 'int') {
         updateState({ timeInt: time });
-      } else {
+      } else if (sectionKey === 'ext') {
         updateState({ timeExt: time });
       }
     } else {
