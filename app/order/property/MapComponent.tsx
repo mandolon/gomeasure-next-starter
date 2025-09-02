@@ -27,50 +27,132 @@ export default function MapComponent({ isVisible, onAreaCalculated, addressCoord
     setMounted(true);
   }, []);
 
-  // Initialize map when visible
+  // Initialize map when visible using EXACT code from working HTML
   useEffect(() => {
     if (!mounted || !isVisible || !mapRef.current || mapInstanceRef.current) return;
 
     const initMap = () => {
       if (typeof window === 'undefined' || !window.L) return;
 
+      // EXACT CODE FROM WORKING HTML
       const isTouch = window.matchMedia('(pointer:coarse)').matches;
       
       const map = window.L.map(mapRef.current, { 
         zoomControl: true, 
         scrollWheelZoom: !isTouch,
-        attributionControl: false,
-        preferCanvas: true,
-        zoomAnimation: !isTouch,
-        fadeAnimation: false,
-        markerZoomAnimation: !isTouch
+        attributionControl: false, // Completely remove attribution control
+        // Performance optimizations
+        preferCanvas: true, // Use canvas renderer for better performance
+        zoomAnimation: !isTouch, // Disable zoom animations on mobile
+        fadeAnimation: false, // Disable tile fade for faster rendering
+        markerZoomAnimation: !isTouch // Disable marker animations on mobile
       }).setView([38.5816, -121.4944], 12);
       
       mapInstanceRef.current = map;
       
-      // Add tiles
+      // Add tiles without attribution
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
         maxZoom: 20, 
-        updateWhenIdle: true,
-        updateWhenZooming: false,
-        keepBuffer: 2
+        updateWhenIdle: true, // Update tiles only when map stops moving
+        updateWhenZooming: false, // Don't update while zooming
+        keepBuffer: 2 // Reduce tile buffer for mobile
       }).addTo(map);
 
-      // Parcels overlay
+      // Parcels overlay - with performance settings
       if (window.L.esri) {
         window.L.esri.dynamicMapLayer({
           url: 'https://mapservices.gis.saccounty.net/arcgis/rest/services/PARCELS/MapServer',
           opacity: 0.6,
-          attribution: '',
-          updateInterval: 200
+          attribution: '', // Remove parcel attribution
+          updateInterval: 200 // Throttle updates
         }).addTo(map);
       }
 
-      // Draw tools
-      const drawnItems = new window.L.FeatureGroup().addTo(map);
-      drawnLayersRef.current = drawnItems;
+      // House number labels from National Address Database
+      // Only render at zoom >= 18 for performance
+      let addressLayer: any = null;
+      let updateTimeout: any = null;
       
-      const drawControl = new window.L.Control.Draw({
+      function loadAddressLabels() {
+        // Clear any pending updates
+        if (updateTimeout) {
+          clearTimeout(updateTimeout);
+        }
+        
+        if (map.getZoom() >= 18) {
+          // Throttle address loading
+          updateTimeout = setTimeout(() => {
+            if (!addressLayer && window.L.esri) {
+              // Create the feature layer with California filter
+              addressLayer = window.L.esri.featureLayer({
+                url: 'https://services.arcgis.com/xOi1kZaI0eWDREZv/ArcGIS/rest/services/Address_Points_from_National_Address_Database_view/FeatureServer/0',
+                where: "State = 'CA'",
+                // Performance limits
+                maxFeatures: 1000, // Reduced from 2000
+                precision: 5, // Reduce coordinate precision
+                simplifyFactor: 0.5, // Simplify geometries
+                attribution: '', // No attribution for this layer
+                // Custom rendering for house numbers
+                pointToLayer: function(geojson: any, latlng: any) {
+                  // Skip if no address number
+                  const addNum = geojson.properties.Add_Number || geojson.properties.AddNo_Full;
+                  if (!addNum) return null;
+                  
+                  // Create invisible marker with permanent tooltip
+                  const marker = window.L.circleMarker(latlng, {
+                    radius: 0,
+                    opacity: 0,
+                    fillOpacity: 0
+                  });
+                  
+                  // Attach house number as tooltip
+                  marker.bindTooltip(String(addNum), {
+                    permanent: true,
+                    direction: 'center',
+                    className: 'hn-label',
+                    offset: [0, 0]
+                  }).openTooltip();
+                  
+                  return marker;
+                }
+              });
+              
+              addressLayer.addTo(map);
+            }
+          }, 300); // 300ms delay to prevent rapid loading
+        } else {
+          // Remove layer when zoomed out
+          if (addressLayer) {
+            map.removeLayer(addressLayer);
+            addressLayer = null;
+          }
+        }
+      }
+      
+      // Monitor zoom changes with debouncing
+      map.on('zoomend', loadAddressLabels);
+      
+      // Don't load addresses while moving at high zoom (performance)
+      map.on('movestart', () => {
+        if (updateTimeout) {
+          clearTimeout(updateTimeout);
+        }
+      });
+      
+      map.on('moveend', () => {
+        if (map.getZoom() >= 18) {
+          loadAddressLabels();
+        }
+      });
+      
+      // Initial check
+      loadAddressLabels();
+
+      // Draw tools
+      const drawn = new window.L.FeatureGroup().addTo(map);
+      drawnLayersRef.current = drawn;
+      
+      const drawCtl = new window.L.Control.Draw({
         position: 'topleft',
         draw: {
           polygon: { 
@@ -79,7 +161,7 @@ export default function MapComponent({ isVisible, onAreaCalculated, addressCoord
             shapeOptions: { 
               color: '#db0f83', 
               weight: 2,
-              opacity: 0.8
+              opacity: 0.8 // Slightly transparent for performance
             } 
           },
           polyline: false, 
@@ -89,15 +171,15 @@ export default function MapComponent({ isVisible, onAreaCalculated, addressCoord
           circlemarker: false
         },
         edit: { 
-          featureGroup: drawnItems, 
+          featureGroup: drawn, 
           edit: true, 
           remove: true 
         }
       });
-      map.addControl(drawControl);
-      drawControlRef.current = drawControl;
+      map.addControl(drawCtl);
+      drawControlRef.current = drawCtl;
 
-      // Area calculation
+      // Area calculation - EXACT CODE FROM HTML
       if (!window.L.GeometryUtil) window.L.GeometryUtil = {};
       window.L.GeometryUtil.geodesicArea = function (latLngs: any[]) {
         let area = 0, len = latLngs.length, d2r = Math.PI/180, R = 6378137;
@@ -114,7 +196,7 @@ export default function MapComponent({ isVisible, onAreaCalculated, addressCoord
 
       function recompute() {
         let m2 = 0;
-        drawnItems.eachLayer((layer: any) => {
+        drawn.eachLayer((layer: any) => {
           if (layer instanceof window.L.Polygon) {
             const ring = layer.getLatLngs()[0];
             if (ring && ring.length > 2) {
@@ -128,16 +210,18 @@ export default function MapComponent({ isVisible, onAreaCalculated, addressCoord
       }
 
       map.on(window.L.Draw.Event.CREATED, (e: any) => { 
-        drawnItems.clearLayers(); 
-        drawnItems.addLayer(e.layer); 
+        drawn.clearLayers(); 
+        drawn.addLayer(e.layer); 
         recompute(); 
       });
       map.on(window.L.Draw.Event.EDITED, recompute);
       map.on(window.L.Draw.Event.DELETED, recompute);
 
-      // Handle resize
+      // Debounced resize handler for performance
+      let resizeTimeout: any;
       const handleResize = () => {
-        setTimeout(() => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
           map.invalidateSize();
         }, 100);
       };
@@ -146,12 +230,19 @@ export default function MapComponent({ isVisible, onAreaCalculated, addressCoord
       window.addEventListener('orientationchange', handleResize);
     };
 
-    // Initialize map after a short delay to ensure Leaflet is loaded
-    const timer = setTimeout(initMap, 100);
-    return () => clearTimeout(timer);
+    // Wait for Leaflet to load
+    const checkAndInit = () => {
+      if (window.L && window.L.esri) {
+        initMap();
+      } else {
+        setTimeout(checkAndInit, 100);
+      }
+    };
+    
+    checkAndInit();
   }, [mounted, isVisible, onAreaCalculated]);
 
-  // Handle address coordinates
+  // Handle address coordinates - EXACT MARKER CODE FROM HTML
   useEffect(() => {
     if (addressCoords && mapInstanceRef.current && window.L) {
       const map = mapInstanceRef.current;
@@ -163,7 +254,7 @@ export default function MapComponent({ isVisible, onAreaCalculated, addressCoord
         map.removeLayer(addressPinRef.current);
       }
       
-      // Create custom marker
+      // Custom marker icon - EXACT CODE FROM HTML
       const customIcon = window.L.divIcon({
         html: `
           <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
