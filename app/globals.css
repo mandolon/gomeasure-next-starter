@@ -495,6 +495,25 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   text-decoration: underline;
 }
 
+/* Review page styles */
+.review-grid { display: grid; gap: 16px; margin-top: 12px; }
+.review-section { padding: 12px; background: #f8f9fa; border-radius: 8px; }
+.review-section h3 { margin-top: 0; font-size: 14px; color: var(--ink-5); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.review-item { display: flex; justify-content: space-between; margin: 8px 0; }
+.review-label { color: var(--ink-5); font-size: 14px; }
+.review-value { font-weight: 500; font-size: 14px; }
+
+/* Checkbox styles */
+.checkbox-group { margin: 20px 0; }
+.checkbox-wrap { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0; }
+.checkbox-wrap input[type="checkbox"] {
+  width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); cursor: pointer;
+}
+.checkbox-wrap label {
+  margin: 0; font-weight: 400; font-size: 14px; line-height: 1.4; cursor: pointer;
+}
+.checkbox-wrap label a { color: var(--accent); text-decoration: underline; }
+
 /* Booking policy disclaimer */
 .disclaimer{
   margin:10px 0 0;padding:10px;border:1px solid var(--line);

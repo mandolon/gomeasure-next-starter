@@ -36,6 +36,41 @@ export default function ReviewPage() {
     });
   };
 
+  const formatSchedule = () => {
+    const { capScope, dateInt, timeInt, dateExt, timeExt, date, time } = state;
+    
+    if (capScope === 'interior') {
+      return {
+        date: formatDate(dateInt || date),
+        time: timeInt || time || '—'
+      };
+    } else if (capScope === 'exterior') {
+      return {
+        date: formatDate(dateExt || date),
+        time: timeExt || time || '—'
+      };
+    } else if (capScope === 'interior-exterior') {
+      // For combined scope, show both if different, otherwise show one
+      const intDate = formatDate(dateInt);
+      const extDate = formatDate(dateExt);
+      const intTime = timeInt || '—';
+      const extTime = timeExt || '—';
+      
+      if (intDate === extDate && intTime === extTime) {
+        return { date: intDate, time: intTime };
+      } else {
+        return {
+          date: `Interior: ${intDate}, Exterior: ${extDate}`,
+          time: `Interior: ${intTime}, Exterior: ${extTime}`
+        };
+      }
+    }
+    
+    return { date: formatDate(date), time: time || '—' };
+  };
+
+  const scheduleInfo = formatSchedule();
+
   const handlePlaceOrder = () => {
     if (!agreeTerms || !agreePayment) {
       alert('Please agree to the terms and payment authorization.');
@@ -55,23 +90,23 @@ export default function ReviewPage() {
           <h3>Property Details</h3>
           <div className="review-item">
             <span className="review-label">Address</span>
-            <span className="review-value">{state.address || '—'}</span>
+            <span className="review-value" id="rev-address">{state.address || '—'}</span>
           </div>
           <div className="review-item">
             <span className="review-label">Type</span>
-            <span className="review-value">
+            <span className="review-value" id="rev-type">
               {state.propType ? state.propType.charAt(0).toUpperCase() + state.propType.slice(1) : '—'}
             </span>
           </div>
           <div className="review-item">
             <span className="review-label">Scope</span>
-            <span className="review-value">
+            <span className="review-value" id="rev-scope">
               {state.capScope ? formatScope(state.capScope) : '—'}
             </span>
           </div>
           <div className="review-item">
             <span className="review-label">Area</span>
-            <span className="review-value">{formatArea()}</span>
+            <span className="review-value" id="rev-area">{formatArea()}</span>
           </div>
         </div>
 
@@ -79,11 +114,11 @@ export default function ReviewPage() {
           <h3>Schedule</h3>
           <div className="review-item">
             <span className="review-label">Date</span>
-            <span className="review-value">{formatDate(state.date)}</span>
+            <span className="review-value" id="rev-date">{scheduleInfo.date}</span>
           </div>
           <div className="review-item">
             <span className="review-label">Time</span>
-            <span className="review-value">{state.time || '—'}</span>
+            <span className="review-value" id="rev-time">{scheduleInfo.time}</span>
           </div>
         </div>
 
@@ -91,27 +126,31 @@ export default function ReviewPage() {
           <h3>Contact</h3>
           <div className="review-item">
             <span className="review-label">Primary Contact</span>
-            <span className="review-value">{state.contactName || '—'}</span>
+            <span className="review-value" id="rev-contact">{state.contactName || '—'}</span>
           </div>
           <div className="review-item">
             <span className="review-label">Phone</span>
-            <span className="review-value">{state.contactPhone || '—'}</span>
+            <span className="review-value" id="rev-phone">{state.contactPhone || '—'}</span>
           </div>
-          {state.hasSecondContact && (state.contactName2 || state.contactPhone2) && (
-            <>
-              <div className="review-item">
-                <span className="review-label">Second Contact</span>
-                <span className="review-value">{state.contactName2 || '—'}</span>
-              </div>
-              <div className="review-item">
-                <span className="review-label">Second Phone</span>
-                <span className="review-value">{state.contactPhone2 || '—'}</span>
-              </div>
-            </>
-          )}
+          <div 
+            className="review-item" 
+            id="rev-contact2-row" 
+            style={{ display: state.hasSecondContact && state.contactName2 ? 'flex' : 'none' }}
+          >
+            <span className="review-label">Second Contact</span>
+            <span className="review-value" id="rev-contact2">{state.contactName2 || '—'}</span>
+          </div>
+          <div 
+            className="review-item" 
+            id="rev-phone2-row" 
+            style={{ display: state.hasSecondContact && state.contactPhone2 ? 'flex' : 'none' }}
+          >
+            <span className="review-label">Second Phone</span>
+            <span className="review-value" id="rev-phone2">{state.contactPhone2 || '—'}</span>
+          </div>
           <div className="review-item">
             <span className="review-label">Email</span>
-            <span className="review-value">{state.contactEmail || '—'}</span>
+            <span className="review-value" id="rev-email">{state.contactEmail || '—'}</span>
           </div>
         </div>
       </div>
@@ -142,7 +181,9 @@ export default function ReviewPage() {
       </div>
 
       <div className="actions">
-        <button className="btn btn-primary" onClick={handlePlaceOrder}>
+        <button className="btn btn-ghost" data-prev="contact">Back</button>
+        <div style={{ flex: 1 }}></div>
+        <button className="btn btn-primary" id="placeOrderBtn" onClick={handlePlaceOrder}>
           Place order
         </button>
       </div>
