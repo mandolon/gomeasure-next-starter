@@ -11,8 +11,8 @@ NEXT_TELEMETRY_DISABLED = "1"
 
 [deployment]
 build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
-deploymentTarget = "cloudrun"
+run = ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
+deploymentTarget = "autoscale"
 
 [[ports]]
 localPort = 3000
@@ -57,7 +57,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev -- --port 5000"
+args = "npm run dev -- --hostname 0.0.0.0 --port 5000"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
