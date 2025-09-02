@@ -1,4 +1,4 @@
-import StepNav from "@/components/StepNav";
+import StepNav from "../../components/StepNav";
 
 export default function OrderLayout({ children }: { children: React.ReactNode }) {
   return (
