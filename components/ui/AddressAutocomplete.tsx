@@ -131,45 +131,46 @@ export default function AddressAutocomplete({
   };
 
   return (
-    <div className="ac-wrap" ref={inputRef}>
+    <div className="ac-wrap relative" ref={inputRef}>
       <input
         id="address"
-        className="input"
+        className="input w-full border rounded p-2"
         type="text"
         placeholder="Start typing your address..."
         value={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
         autoComplete="street-address"
-        role="combobox"
+        aria-autocomplete="list"
         aria-expanded={isOpen}
+        aria-owns="addr-list"
+        aria-controls="addr-list"
+        role="combobox"
+        required
       />
       {isOpen && suggestions.length > 0 && (
-        <div className="ac-panel" role="listbox">
-          {suggestions.map((s, idx) => {
-            const { primary, secondary } = formatAddress(s);
+        <div
+          id="addr-list"
+          className="ac-panel absolute bg-white border rounded shadow-md w-full mt-1 z-10"
+          role="listbox"
+        >
+          {suggestions.map((suggestion, index) => {
+            const { primary, secondary } = formatAddress(suggestion);
             return (
               <div
-                key={s.place_id || idx}
-                className={`ac-item ${idx === activeIndex ? "is-active" : ""}`}
-                onClick={() => selectSuggestion(s)}
+                key={suggestion.place_id || index}
+                className={`ac-item p-2 cursor-pointer hover:bg-gray-100 ${
+                  index === activeIndex ? "bg-gray-100" : ""
+                }`}
+                onClick={() => selectSuggestion(suggestion)}
                 role="option"
-                aria-selected={idx === activeIndex}
+                aria-selected={index === activeIndex}
               >
-                <svg
-                  className="ac-icon"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
                 <div className="ac-text">
-                  <div className="ac-title">{primary}</div>
-                  <div className="ac-sub">{secondary}</div>
+                  <div className="ac-title font-medium">{primary}</div>
+                  <div className="ac-sub text-sm text-gray-500">
+                    {secondary}
+                  </div>
                 </div>
               </div>
             );
