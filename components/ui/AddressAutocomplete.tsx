@@ -52,7 +52,7 @@ export default function AddressAutocomplete({ value, onChange }: AddressAutocomp
 
   const searchAddress = async (query: string) => {
     try {
-      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}&countrycodes=us`);
       
       if (!response.ok) {
         console.error('Failed to fetch suggestions');
@@ -60,8 +60,21 @@ export default function AddressAutocomplete({ value, onChange }: AddressAutocomp
       }
       
       const data = await response.json();
-      setSuggestions(data);
-      setIsOpen(data.length > 0);
+      
+      // Filter for California addresses only and format properly
+      const filteredData = data
+        .filter((suggestion: Suggestion) => {
+          const displayName = suggestion.display_name.toLowerCase();
+          return displayName.includes('california') || displayName.includes(', ca,') || displayName.includes(', ca ');
+        })
+        .filter((suggestion: Suggestion) => {
+          // Only include addresses that have house number, street, and postcode
+          const address = suggestion.address;
+          return address && address.house_number && address.road && address.postcode;
+        });
+      
+      setSuggestions(filteredData);
+      setIsOpen(filteredData.length > 0);
     } catch (error) {
       console.error('Error searching address:', error);
       setSuggestions([]);
@@ -70,7 +83,9 @@ export default function AddressAutocomplete({ value, onChange }: AddressAutocomp
   };
 
   const selectSuggestion = (suggestion: Suggestion) => {
-    onChange(suggestion.display_name);
+    const { primary, secondary } = formatAddress(suggestion);
+    const formattedAddress = `${primary}, ${secondary}`;
+    onChange(formattedAddress);
     setSuggestions([]);
     setIsOpen(false);
     setActiveIndex(-1);
@@ -124,20 +139,14 @@ export default function AddressAutocomplete({ value, onChange }: AddressAutocomp
       };
     }
     
-    const parts = [];
-    if (address.house_number) parts.push(address.house_number);
-    if (address.road) parts.push(address.road);
+    // Format as: number street
+    const streetParts = [];
+    if (address.house_number) streetParts.push(address.house_number);
+    if (address.road) streetParts.push(address.road);
+    const primary = streetParts.join(' ');
     
-    const primary = parts.join(' ') || suggestion.display_name.split(',')[0];
-    
-    const secondaryParts = [];
-    if (address.city || address.town || address.village) {
-      secondaryParts.push(address.city || address.town || address.village);
-    }
-    if (address.state) secondaryParts.push(address.state);
-    if (address.postcode) secondaryParts.push(address.postcode);
-    
-    const secondary = secondaryParts.join(', ') || suggestion.display_name.split(',').slice(1).join(',').trim();
+    // Format as: CA zipcode
+    const secondary = `CA ${address.postcode || ''}`.trim();
     
     return { primary, secondary };
   };
