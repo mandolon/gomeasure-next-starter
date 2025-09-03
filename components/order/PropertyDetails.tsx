@@ -5,15 +5,15 @@ import PropertyMap from "@/components/map/PropertyMap";
 import AddressAutocomplete from "@/components/ui/AddressAutocomplete";
 
 interface PropertyDetailsProps {
-  formData: any;
-  onUpdate: (data: any) => void;
-  onNext: () => void;
+  formData?: any;
+  onUpdate?: (data: any) => void;
+  onNext?: () => void;
 }
 
 export default function PropertyDetails({
-  formData,
-  onUpdate,
-  onNext,
+  formData = {},
+  onUpdate = () => {},
+  onNext = () => {},
 }: PropertyDetailsProps) {
   const [localData, setLocalData] = useState({
     address: "",
@@ -25,6 +25,9 @@ export default function PropertyDetails({
     areaBothExt: 0,
     ...formData,
   });
+
+  // signal used to auto-open the map when an address is selected
+  const [openMapSignal, setOpenMapSignal] = useState(0);
 
   const handleInputChange = (field: string, value: any) => {
     const newData = { ...localData, [field]: value };
@@ -61,6 +64,11 @@ export default function PropertyDetails({
       <AddressAutocomplete
         value={localData.address}
         onChange={(value) => handleInputChange("address", value)}
+        onSelect={(full) => {
+          handleInputChange("address", full);
+          // bump the signal so the map opens and drops the pin (like original HTML)
+          setOpenMapSignal((n) => n + 1);
+        }}
       />
 
       <div className="section-header">
@@ -127,10 +135,7 @@ export default function PropertyDetails({
           <label className="choice" htmlFor="cap-int">
             <span className="dot-sel" aria-hidden="true"></span>
             <svg className="icon" viewBox="0 0 64 64" aria-hidden="true">
-              <path
-                d="M8 50 V18 l24-10 24 10 v32 H8z M8 26 h48"
-                strokeWidth="2"
-              />
+              <path d="M8 50 V18 l24-10 24 10 v32 H8z M8 26 h48" strokeWidth="2" />
               <path d="M20 34 h12 v12 H20z" strokeWidth="2" />
             </svg>
             <div>
@@ -272,6 +277,7 @@ export default function PropertyDetails({
       <PropertyMap
         address={localData.address}
         onAreaMeasured={handleAreaFromMap}
+        openSignal={openMapSignal}
       />
 
       <div className="hint">
