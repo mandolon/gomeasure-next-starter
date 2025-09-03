@@ -27,8 +27,11 @@ export default function AddressAutocomplete({ value, onChange }: AddressAutocomp
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLDivElement>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const cache = useRef<Map<string, Suggestion[]>>(new Map());
+  const abortController = useRef<AbortController | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -39,56 +42,84 @@ export default function AddressAutocomplete({ value, onChange }: AddressAutocomp
       clearTimeout(debounceTimer.current);
     }
     
+    // Cancel any pending requests
+    if (abortController.current) {
+      abortController.current.abort();
+    }
+    
     // Set new timer for debounced search
     if (newValue.length > 3) {
+      setIsLoading(true);
       debounceTimer.current = setTimeout(() => {
         searchAddress(newValue);
-      }, 300);
+      }, 600); // Increased debounce time to reduce API calls
     } else {
       setSuggestions([]);
       setIsOpen(false);
+      setIsLoading(false);
     }
   };
 
   const searchAddress = async (query: string) => {
+    // Check cache first
+    const cacheKey = query.toLowerCase().trim();
+    if (cache.current.has(cacheKey)) {
+      const cached = cache.current.get(cacheKey)!;
+      setSuggestions(cached);
+      setIsOpen(cached.length > 0);
+      setIsLoading(false);
+      return;
+    }
+
+    // Create new abort controller for this request
+    abortController.current = new AbortController();
+
     try {
-      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}&countrycodes=us`);
+      const timeoutId = setTimeout(() => abortController.current?.abort(), 4000);
+      
+      const response = await fetch(
+        `/api/geocode?q=${encodeURIComponent(query)}`,
+        { signal: abortController.current.signal }
+      );
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
-        console.error('Failed to fetch suggestions');
-        return;
+        throw new Error('Failed to fetch suggestions');
       }
       
       const data = await response.json();
       
-      // Filter for California addresses only and format properly
-      const filteredData = data
-        .filter((suggestion: Suggestion) => {
-          const displayName = suggestion.display_name.toLowerCase();
-          return displayName.includes('california') || displayName.includes(', ca,') || displayName.includes(', ca ');
-        })
-        .filter((suggestion: Suggestion) => {
-          // Only include addresses that have house number, street, and postcode
-          const address = suggestion.address;
-          return address && address.house_number && address.road && address.postcode;
-        });
+      // Cache the result
+      cache.current.set(cacheKey, data);
       
-      setSuggestions(filteredData);
-      setIsOpen(filteredData.length > 0);
-    } catch (error) {
+      // Keep cache size limited (LRU-like)
+      if (cache.current.size > 30) {
+        const firstKey = cache.current.keys().next().value;
+        cache.current.delete(firstKey);
+      }
+      
+      setSuggestions(data);
+      setIsOpen(data.length > 0);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        // Request was cancelled, do nothing
+        return;
+      }
       console.error('Error searching address:', error);
       setSuggestions([]);
       setIsOpen(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const selectSuggestion = (suggestion: Suggestion) => {
-    const { primary, secondary } = formatAddress(suggestion);
-    const formattedAddress = `${primary}, ${secondary}`;
-    onChange(formattedAddress);
+    onChange(suggestion.display_name);
     setSuggestions([]);
     setIsOpen(false);
     setActiveIndex(-1);
+    setIsLoading(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -130,23 +161,42 @@ export default function AddressAutocomplete({ value, onChange }: AddressAutocomp
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+      if (abortController.current) {
+        abortController.current.abort();
+      }
+    };
+  }, []);
+
   const formatAddress = (suggestion: Suggestion) => {
     const address = suggestion.address;
     if (!address) {
+      const parts = suggestion.display_name.split(',');
       return {
-        primary: suggestion.display_name.split(',')[0],
-        secondary: suggestion.display_name.split(',').slice(1).join(',').trim()
+        primary: parts[0].trim(),
+        secondary: parts.slice(1).join(',').trim()
       };
     }
     
-    // Format as: number street
-    const streetParts = [];
-    if (address.house_number) streetParts.push(address.house_number);
-    if (address.road) streetParts.push(address.road);
-    const primary = streetParts.join(' ');
+    const parts = [];
+    if (address.house_number) parts.push(address.house_number);
+    if (address.road) parts.push(address.road);
     
-    // Format as: CA zipcode
-    const secondary = `CA ${address.postcode || ''}`.trim();
+    const primary = parts.join(' ') || suggestion.display_name.split(',')[0];
+    
+    const secondaryParts = [];
+    if (address.city || address.town || address.village) {
+      secondaryParts.push(address.city || address.town || address.village);
+    }
+    if (address.state) secondaryParts.push(address.state);
+    if (address.postcode) secondaryParts.push(address.postcode);
+    
+    const secondary = secondaryParts.join(', ') || suggestion.display_name.split(',').slice(1).join(',').trim();
     
     return { primary, secondary };
   };
@@ -163,13 +213,22 @@ export default function AddressAutocomplete({ value, onChange }: AddressAutocomp
         onKeyDown={handleKeyDown}
         autoComplete="street-address" 
         aria-autocomplete="list" 
-        aria-expanded={isOpen} 
+        aria-expanded={isOpen || isLoading} 
         aria-owns="addr-list" 
         aria-controls="addr-list" 
+        aria-busy={isLoading}
         role="combobox" 
         required
       />
-      {isOpen && suggestions.length > 0 && (
+      {isLoading && (
+        <div 
+          className="ac-panel" 
+          style={{ display: 'block', padding: '12px', textAlign: 'center', color: '#666' }}
+        >
+          <div style={{ fontSize: '14px' }}>Searching addresses...</div>
+        </div>
+      )}
+      {!isLoading && isOpen && suggestions.length > 0 && (
         <div 
           id="addr-list" 
           className="ac-panel" 
