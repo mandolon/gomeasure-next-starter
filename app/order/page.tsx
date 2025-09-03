@@ -1,7 +1,7 @@
+'use client';
+
+import OrderForm from '@/components/order/OrderForm';
+
 export default function OrderPage() {
-  return (
-    <div>
-      <h1>Order Page</h1>
-    </div>
-  );
+  return <OrderForm />;
 }
