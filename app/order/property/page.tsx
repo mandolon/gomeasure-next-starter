@@ -1,72 +1,154 @@
 'use client';
 import StepNav from '../components/StepNav';
 import { useOrder } from '../context';
-import { useState, useEffect, useRef } from 'react';
-import { useMap } from '../hooks/useMap';
-import { useAddressAutocomplete } from '../hooks/useAddressAutocomplete';
+import { useState, useEffect } from 'react';
+
+// Import map component directly
+import MapComponent from './MapComponent';
+
+interface AddressResult {
+  primary: string;
+  city: string;
+  zip: string;
+  lat: string;
+  lon: string;
+}
 
 export default function PropertyPage() {
   const { state, updateState } = useOrder();
-  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
-  const addressInputRef = useRef<HTMLInputElement>(null);
-  
-  const { mapRef, currentSqFt, centerOnAddress, invalidateSize } = useMap();
-  const { 
-    results, 
-    isVisible, 
-    activeIndex, 
-    search, 
-    hide, 
-    show, 
-    highlight, 
-    selectByIndex, 
-    handleKeyDown 
-  } = useAddressAutocomplete();
+  const [mapVisible, setMapVisible] = useState(false);
+  const [currentSqFt, setCurrentSqFt] = useState(0);
+  const [autocompleteItems, setAutocompleteItems] = useState<AddressResult[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [debounceId, setDebounceId] = useState<NodeJS.Timeout | null>(null);
+  const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | undefined>();
 
-  // Handle address input changes with debounce
+  const CA_VIEWBOX = '-124.48,32.53,-114.13,42.01';
+
+  // Enhanced address autocomplete with California filtering
+  const searchCA = async (query: string): Promise<AddressResult[]> => {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&countrycodes=us&bounded=1&viewbox=${CA_VIEWBOX}&q=${encodeURIComponent(query)}`;
+    
+    try {
+      const response = await fetch(url, { 
+        headers: { 'Accept-Language': 'en' } 
+      });
+      if (!response.ok) return [];
+      
+      const data = await response.json();
+      const filtered = data.filter((d: any) => {
+        const a = d.address || {};
+        const inCA = (a.state === 'California') || (a.state_code === 'CA');
+        const isAddr = ['house', 'residential', 'building', 'yes', 'address', 'road'].includes(d.type) || a.house_number;
+        return inCA && isAddr;
+      });
+      
+      return filtered.map((d: any) => {
+        const a = d.address || {};
+        const num = a.house_number || '';
+        const road = a.road || a.pedestrian || a.footway || a.path || '';
+        const primary = (num && road) ? `${num} ${road}` : (d.name || d.display_name.split(',')[0]);
+        const city = a.city || a.town || a.village || a.hamlet || a.municipality || a.county || '';
+        const zip = a.postcode || '';
+        return { primary, city, zip, lat: d.lat, lon: d.lon };
+      });
+    } catch(e) {
+      return [];
+    }
+  };
+
   const handleAddressChange = (value: string) => {
     updateState({ address: value });
     
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
+    // Clear existing debounce
+    if (debounceId) {
+      clearTimeout(debounceId);
     }
     
-    const timeout = setTimeout(() => {
-      search(value);
+    if (value.length < 3) {
+      setShowAutocomplete(false);
+      setAutocompleteItems([]);
+      return;
+    }
+    
+    // Debounce search
+    const newDebounceId = setTimeout(async () => {
+      try {
+        const results = await searchCA(value);
+        setAutocompleteItems(results);
+        setShowAutocomplete(true);
+        setActiveIndex(-1);
+      } catch(e) {
+        setShowAutocomplete(false);
+      }
     }, 300);
     
-    setDebounceTimeout(timeout);
+    setDebounceId(newDebounceId);
   };
 
-  // Handle address selection
-  const handleAddressSelect = (index: number) => {
-    const result = selectByIndex(index);
-    if (result) {
-      updateState({ address: result.formattedAddress });
-      
-      // Auto-open map and center on address
-      const mapWrap = document.getElementById('mapWrap');
-      if (mapWrap && !mapWrap.classList.contains('open')) {
-        mapWrap.classList.add('open');
-        invalidateSize();
-      }
-      
-      // Center map on selected address after a short delay
-      setTimeout(() => {
-        centerOnAddress(parseFloat(result.lat), parseFloat(result.lon));
-      }, 200);
+  const selectAddress = (index: number) => {
+    const item = autocompleteItems[index];
+    if (!item) return;
+    
+    const fullAddress = `${item.primary}, ${item.city}, CA${item.zip ? ' ' + item.zip : ''}`;
+    updateState({ address: fullAddress });
+    setShowAutocomplete(false);
+    setAutocompleteItems([]);
+    setActiveIndex(-1);
+    
+    // Set coordinates for map centering
+    setAddressCoords({ 
+      lat: parseFloat(item.lat), 
+      lng: parseFloat(item.lon) 
+    });
+    
+    // Auto-open map
+    if (!mapVisible) {
+      setMapVisible(true);
     }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!autocompleteItems.length) return;
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % autocompleteItems.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev - 1 + autocompleteItems.length) % autocompleteItems.length);
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0) {
+        e.preventDefault();
+        selectAddress(activeIndex);
+      }
+    } else if (e.key === 'Escape') {
+      setShowAutocomplete(false);
+      setActiveIndex(-1);
+    }
+  };
+
+  // Click outside to close
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('#ac')) {
+        setShowAutocomplete(false);
+        setActiveIndex(-1);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const onAreaCalculated = (sqFt: number) => {
+    setCurrentSqFt(sqFt);
   };
 
   const toggleMap = () => {
-    const mapWrap = document.getElementById('mapWrap');
-    if (mapWrap) {
-      const isOpen = !mapWrap.classList.contains('open');
-      mapWrap.classList.toggle('open', isOpen);
-      if (isOpen) {
-        invalidateSize();
-      }
-    }
+    setMapVisible(!mapVisible);
   };
 
   const saveMapArea = () => {
@@ -74,6 +156,7 @@ export default function PropertyPage() {
     
     const scope = state.capScope;
     if (scope === 'interior-exterior') {
+      // For Interior & Exterior: save to first empty field, or exterior if both full
       if (!state.areaBothInt) {
         updateState({ areaBothInt: currentSqFt });
       } else if (!state.areaBothExt) {
@@ -82,47 +165,15 @@ export default function PropertyPage() {
         updateState({ areaBothExt: currentSqFt });
       }
     } else {
+      // For single scopes, save to their input
       if (scope === 'interior') {
         updateState({ areaInt: currentSqFt });
       } else if (scope === 'exterior') {
         updateState({ areaExt: currentSqFt });
       }
     }
-    
-    // Close map
-    const mapWrap = document.getElementById('mapWrap');
-    if (mapWrap) mapWrap.classList.remove('open');
+    setCurrentSqFt(0);
   };
-
-  // Handle keyboard navigation for autocomplete
-  const handleAddressKeyDown = (e: React.KeyboardEvent) => {
-    const result = handleKeyDown(e);
-    if (result) {
-      handleAddressSelect(results.indexOf(result));
-    }
-  };
-
-  // Update area display
-  useEffect(() => {
-    const areaOut = document.getElementById('areaOut');
-    if (areaOut) {
-      const fmt = (n: number) => (Math.round(n*10)/10).toLocaleString();
-      areaOut.textContent = fmt(currentSqFt);
-    }
-  }, [currentSqFt]);
-
-  // Handle clicks outside autocomplete
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const ac = document.getElementById('ac');
-      if (ac && !ac.contains(e.target as Node)) {
-        hide();
-      }
-    };
-    
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [hide]);
 
   const handleEstimateLink = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -141,58 +192,55 @@ export default function PropertyPage() {
       
       <div className="ac-wrap" id="ac">
         <input
-          ref={addressInputRef}
           id="address"
           className="input"
           type="text"
           value={state.address}
           onChange={(e) => handleAddressChange(e.target.value)}
-          onKeyDown={handleAddressKeyDown}
-          onFocus={show}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            if (autocompleteItems.length) setShowAutocomplete(true);
+          }}
           placeholder="Start typing your address..."
-          autoComplete="off"
+          autoComplete="street-address"
           aria-autocomplete="list"
-          aria-expanded={isVisible}
+          aria-expanded={showAutocomplete}
           aria-activedescendant={activeIndex >= 0 ? `addr-opt-${activeIndex}` : undefined}
           role="combobox"
           required
         />
         
-        <div 
-          id="addr-list" 
-          className="ac-panel" 
-          role="listbox" 
-          aria-label="Address suggestions" 
-          style={{ display: isVisible ? 'block' : 'none' }}
-        >
-          {results.length === 0 && isVisible ? (
-            <div className="ac-item" style={{ cursor: 'default' }}>
-              <div className="ac-text">
-                <div className="ac-sub">No results found</div>
-              </div>
-            </div>
-          ) : (
-            results.map((result, idx) => (
-              <div
-                key={idx}
-                className={`ac-item ${activeIndex === idx ? 'is-active' : ''}`}
-                role="option"
-                id={`addr-opt-${idx}`}
-                onMouseEnter={() => highlight(idx)}
-                onMouseLeave={() => highlight(-1)}
-                onClick={() => handleAddressSelect(idx)}
-              >
-                <svg className="ac-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                </svg>
+        {showAutocomplete && (
+          <div id="addr-list" className="ac-panel" role="listbox" aria-label="Address suggestions" style={{ display: 'block' }}>
+            {autocompleteItems.length > 0 ? (
+              autocompleteItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={`ac-item ${idx === activeIndex ? 'is-active' : ''}`}
+                  onClick={() => selectAddress(idx)}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                  onMouseLeave={() => setActiveIndex(-1)}
+                  role="option"
+                  id={`addr-opt-${idx}`}
+                >
+                  <svg className="ac-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                  </svg>
+                  <div className="ac-text">
+                    <div className="ac-title">{item.primary}</div>
+                    <div className="ac-sub">{item.city}, CA{item.zip ? ' ' + item.zip : ''}</div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="ac-item" style={{ cursor: 'default' }}>
                 <div className="ac-text">
-                  <div className="ac-title">{result.primary}</div>
-                  <div className="ac-sub">{result.city}, CA{result.zip ? ' ' + result.zip : ''}</div>
+                  <div className="ac-sub">No results found</div>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Section 2: Property Type */}
@@ -379,12 +427,15 @@ export default function PropertyPage() {
       </div>
 
       {/* Map */}
-      <div id="mapWrap" className="map-wrap">
-        <div className="map-instructions">Draw a polygon around your property</div>
-        <div ref={mapRef} id="map"></div>
+      <div id="mapWrap" className={`map-wrap ${mapVisible ? 'open' : ''}`} suppressHydrationWarning>
+        <MapComponent 
+          isVisible={mapVisible} 
+          onAreaCalculated={onAreaCalculated}
+          addressCoords={addressCoords}
+        />
         
         <div className="map-results">
-          <div className="measured-value"><span id="areaOut">{currentSqFt}</span> sq ft</div>
+          <div className="measured-value"><span id="areaOut">{currentSqFt.toLocaleString()}</span> sq ft</div>
           <button id="saveBtn" className="btn-save" type="button" disabled={currentSqFt === 0} onClick={saveMapArea}>
             Save to area field
           </button>
@@ -397,9 +448,6 @@ export default function PropertyPage() {
         </a>
       </div>
 
-      <div className="actions">
-        <button className="btn btn-primary" data-next="schedule">Next</button>
-      </div>
     </section>
   );
 }

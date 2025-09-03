@@ -1,11 +1,17 @@
 'use client';
 import StepNav from '../components/StepNav';
 import { useOrder } from '../context';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function ContactPage() {
   const { state, updateState } = useOrder();
-  const [showSecondContact, setShowSecondContact] = useState(state.hasSecondContact);
+  const [showSecondContact, setShowSecondContact] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setShowSecondContact(state.hasSecondContact);
+  }, [state.hasSecondContact]);
 
   const toggleSecondContact = () => {
     const newValue = !showSecondContact;
@@ -26,32 +32,33 @@ export default function ContactPage() {
     <section className="card">
       <StepNav />
       
-      <h2 tabIndex={-1}>Contact details</h2>
-      <p className="muted">Who should we contact to coordinate the visit?</p>
+      <h2 tabIndex={-1}>Who is the site contact?</h2>
+      <p>We&apos;ll contact this person when arriving on site.</p>
 
-      <div className="field">
-        <label className="label" htmlFor="cname">Primary contact name</label>
-        <input
-          className="input"
-          id="cname"
-          name="contactName"
-          value={state.contactName}
-          onChange={(e) => updateState({ contactName: e.target.value })}
-          placeholder="Enter full name"
-        />
-      </div>
-
-      <div className="field">
-        <label className="label" htmlFor="cphone">Phone number</label>
-        <input
-          className="input"
-          id="cphone"
-          name="contactPhone"
-          type="tel"
-          value={state.contactPhone}
-          onChange={(e) => updateState({ contactPhone: e.target.value })}
-          placeholder="Enter phone number"
-        />
+      <div className="row" style={{ marginTop: '8px' }}>
+        <div className="field">
+          <label className="label" htmlFor="cname">Name</label>
+          <input
+            className="input"
+            id="cname"
+            name="contactName"
+            value={state.contactName}
+            onChange={(e) => updateState({ contactName: e.target.value })}
+            placeholder="Enter your full name"
+          />
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="cphone">Phone</label>
+          <input
+            className="input"
+            id="cphone"
+            name="contactPhone"
+            type="tel"
+            value={state.contactPhone}
+            onChange={(e) => updateState({ contactPhone: e.target.value })}
+            placeholder="Enter phone number"
+          />
+        </div>
       </div>
 
       <div className="contact-toggle" onClick={toggleSecondContact}>
@@ -65,9 +72,10 @@ export default function ContactPage() {
       </div>
 
       <div className={`second-contact ${showSecondContact ? 'show' : ''}`} id="secondContactSection">
+        <h3>Second Contact</h3>
         <div className="row">
           <div className="field">
-            <label className="label" htmlFor="cname2">Second contact name</label>
+            <label className="label" htmlFor="cname2">Name</label>
             <input
               className="input"
               id="cname2"
@@ -83,6 +91,7 @@ export default function ContactPage() {
               className="input"
               id="cphone2"
               name="contactPhone2"
+              type="tel"
               value={state.contactPhone2}
               onChange={(e) => updateState({ contactPhone2: e.target.value })}
               placeholder="Enter phone number"
@@ -118,7 +127,7 @@ export default function ContactPage() {
       </div>
 
       <div className="prep-link">
-        <a href="#" onClick={handlePrepLink}>
+        <a href="#" id="prepLink" onClick={handlePrepLink}>
           📋 How to prepare for scans
         </a>
       </div>

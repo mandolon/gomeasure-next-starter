@@ -231,8 +231,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 }
 .unit-top{font-style:normal;font-weight:600;color:var(--ink-5);font-size:var(--font-xs)}
 
-.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
-@media(max-width:720px){.actions{display:none}}
+.actions{display:none}
 
 .hint{margin-top:20px}
 
@@ -426,6 +425,94 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .time:hover{background:rgba(219,15,131,.10)}
 .time[data-selected="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
 
+/* Contact & Review */
+.field { margin: 10px 0; }
+.label { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--ink-7); }
+.select, .textarea {
+  width: 100%; padding: 12px 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: #fff; font-size: 16px; color: var(--ink);
+  outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+  font-weight: 400;
+}
+.select:focus, .textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(219,15,131,.12);
+}
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media(max-width:720px) { .row { grid-template-columns: 1fr; } }
+
+/* Second contact toggle */
+.contact-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.contact-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.contact-toggle label {
+  margin: 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.second-contact {
+  display: none;
+  margin-top: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.second-contact.show {
+  display: block;
+}
+
+/* Preparation link */
+.prep-link {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(219,15,131,.05);
+  border-radius: 8px;
+  border: 1px solid rgba(219,15,131,.1);
+}
+.prep-link a {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+.prep-link a:hover {
+  text-decoration: underline;
+}
+
+/* Review page styles */
+.review-grid { display: grid; gap: 16px; margin-top: 12px; }
+.review-section { padding: 12px; background: #f8f9fa; border-radius: 8px; }
+.review-section h3 { margin-top: 0; font-size: 14px; color: var(--ink-5); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.review-item { display: flex; justify-content: space-between; margin: 8px 0; }
+.review-label { color: var(--ink-5); font-size: 14px; }
+.review-value { font-weight: 500; font-size: 14px; }
+
+/* Checkbox styles */
+.checkbox-group { margin: 20px 0; }
+.checkbox-wrap { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0; }
+.checkbox-wrap input[type="checkbox"] {
+  width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); cursor: pointer;
+}
+.checkbox-wrap label {
+  margin: 0; font-weight: 400; font-size: 14px; line-height: 1.4; cursor: pointer;
+}
+.checkbox-wrap label a { color: var(--accent); text-decoration: underline; }
+
 /* Booking policy disclaimer */
 .disclaimer{
   margin:10px 0 0;padding:10px;border:1px solid var(--line);
@@ -463,7 +550,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   }
 }
 
-/* Sticky footer */
+/* Sticky footer - only show on mobile */
 .sticky-footer {
   position: fixed;
   bottom: 0;
@@ -473,6 +560,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   border-top: 1px solid var(--line);
   padding: 12px 20px;
   z-index: 1000;
+  display: none;
 }
 
 .sticky-content {
@@ -484,12 +572,28 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   gap: 16px;
 }
 
+/* Show sticky footer only on mobile */
 @media (max-width: 721px) {
   :root {
     --sticky-h: 72px;
   }
   
   .sticky-footer {
+    display: block;
     padding: 16px 20px;
+  }
+}
+
+/* Desktop actions - aligned right under estimate card */
+.desktop-actions {
+  display: none;
+  margin-top: 16px;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (min-width: 722px) {
+  .desktop-actions {
+    display: flex;
   }
 }

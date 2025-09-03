@@ -1,5 +1,5 @@
 'use client';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface OrderState {
   // Property details
@@ -10,11 +10,13 @@ interface OrderState {
   areaExt: number;
   areaBothInt: number;
   areaBothExt: number;
-  
+
   // Schedule
-  date: string;
-  time: string;
-  
+  dateInt: string;
+  timeInt: string;
+  dateExt: string;
+  timeExt: string;
+
   // Contact
   contactName: string;
   contactPhone: string;
@@ -39,8 +41,10 @@ const initialState: OrderState = {
   areaExt: 0,
   areaBothInt: 0,
   areaBothExt: 0,
-  date: '',
-  time: '',
+  dateInt: '',
+  timeInt: '',
+  dateExt: '',
+  timeExt: '',
   contactName: '',
   contactPhone: '',
   contactEmail: '',
@@ -53,28 +57,25 @@ const initialState: OrderState = {
 const OrderContext = createContext<OrderContextType | null>(null);
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<OrderState>(initialState);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Load state from sessionStorage on mount
-  useEffect(() => {
-    const saved = sessionStorage.getItem('orderStateDemo');
-    if (saved) {
-      try {
-        setState(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse saved state');
+  // ✅ safe lazy init, only runs on client
+  const [state, setState] = useState<OrderState>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('orderStateDemo');
+      if (saved) {
+        try {
+          return JSON.parse(saved) as OrderState;
+        } catch {
+          console.error('Failed to parse saved state');
+        }
       }
     }
-    setIsLoaded(true);
-  }, []);
+    return initialState;
+  });
 
-  // Save to sessionStorage whenever state changes
+  // ✅ persist changes
   useEffect(() => {
-    if (isLoaded) {
-      sessionStorage.setItem('orderStateDemo', JSON.stringify(state));
-    }
-  }, [state, isLoaded]);
+    sessionStorage.setItem('orderStateDemo', JSON.stringify(state));
+  }, [state]);
 
   const updateState = (updates: Partial<OrderState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -82,7 +83,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const resetState = () => {
     setState(initialState);
-    sessionStorage.removeItem('orderStateDemo');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('orderStateDemo');
+    }
   };
 
   return (
@@ -94,33 +97,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
 export function useOrder() {
   const context = useContext(OrderContext);
-  if (!context) {
-    throw new Error('useOrder must be used within OrderProvider');
-  }
+  if (!context) throw new Error('useOrder must be used within OrderProvider');
   return context;
-}
-
-export function calcPrice(state: OrderState) {
-  const { capScope, areaInt, areaExt, areaBothInt, areaBothExt } = state;
-  let i = 0, e = 0;
-  
-  if (capScope === 'interior') {
-    i = parseFloat(String(areaInt)) || 0;
-  } else if (capScope === 'exterior') {
-    e = parseFloat(String(areaExt)) || 0;
-  } else if (capScope === 'interior-exterior') {
-    i = parseFloat(String(areaBothInt)) || 0;
-    e = parseFloat(String(areaBothExt)) || 0;
-  }
-  
-  const intPrice = i * 0.25;
-  const extPrice = e * 0.15;
-  let total = intPrice + extPrice;
-  if (i > 0 && e > 0) total *= 0.9; // discount for both
-  
-  return { 
-    interior: intPrice, 
-    exterior: extPrice, 
-    total: Math.round(total * 100) / 100 
-  };
 }
