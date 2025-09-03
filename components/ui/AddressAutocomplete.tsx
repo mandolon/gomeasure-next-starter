@@ -1,7 +1,6 @@
-// components/ui/AddressAutocomplete.tsx
-"use client";
+'use client';
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from 'react';
 
 interface AddressAutocompleteProps {
   value: string;
@@ -24,10 +23,7 @@ interface Suggestion {
   };
 }
 
-export default function AddressAutocomplete({
-  value,
-  onChange,
-}: AddressAutocompleteProps) {
+export default function AddressAutocomplete({ value, onChange }: AddressAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -37,9 +33,13 @@ export default function AddressAutocomplete({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     onChange(newValue);
-
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-
+    
+    // Clear previous timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    // Set new timer for debounced search
     if (newValue.length > 3) {
       debounceTimer.current = setTimeout(() => {
         searchAddress(newValue);
@@ -52,24 +52,18 @@ export default function AddressAutocomplete({
 
   const searchAddress = async (query: string) => {
     try {
-      const response = await fetch(
-        `/api/geocode?q=${encodeURIComponent(query)}`,
-      );
-      if (!response.ok) return;
-      const data: Suggestion[] = await response.json();
-
-      const filtered = data.filter((d) => {
-        const a = d.address || {};
-        return (
-          (a.house_number || a.road) &&
-          (a.city || a.town || a.village) &&
-          a.state === "California"
-        );
-      });
-
-      setSuggestions(filtered);
-      setIsOpen(filtered.length > 0);
-    } catch {
+      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+      
+      if (!response.ok) {
+        console.error('Failed to fetch suggestions');
+        return;
+      }
+      
+      const data = await response.json();
+      setSuggestions(data);
+      setIsOpen(data.length > 0);
+    } catch (error) {
+      console.error('Error searching address:', error);
       setSuggestions([]);
       setIsOpen(false);
     }
@@ -84,88 +78,108 @@ export default function AddressAutocomplete({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) return;
-
+    
     switch (e.key) {
-      case "ArrowDown":
+      case 'ArrowDown':
         e.preventDefault();
-        setActiveIndex((prev) =>
-          prev < suggestions.length - 1 ? prev + 1 : prev,
+        setActiveIndex((prev) => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
         );
         break;
-      case "ArrowUp":
+      case 'ArrowUp':
         e.preventDefault();
-        setActiveIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        setActiveIndex((prev) => prev > 0 ? prev - 1 : -1);
         break;
-      case "Enter":
+      case 'Enter':
         e.preventDefault();
         if (activeIndex >= 0 && activeIndex < suggestions.length) {
           selectSuggestion(suggestions[activeIndex]);
         }
         break;
-      case "Escape":
+      case 'Escape':
         setIsOpen(false);
         setActiveIndex(-1);
         break;
     }
   };
 
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (inputRef.current && !inputRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const formatAddress = (suggestion: Suggestion) => {
-    const a = suggestion.address || {};
-    const primary =
-      `${a.house_number || ""} ${a.road || ""}`.trim() ||
-      suggestion.display_name.split(",")[0];
-    const city = a.city || a.town || a.village || "";
-    const zip = a.postcode || "";
-    const secondary = [city, zip].filter(Boolean).join(", ");
+    const address = suggestion.address;
+    if (!address) {
+      return {
+        primary: suggestion.display_name.split(',')[0],
+        secondary: suggestion.display_name.split(',').slice(1).join(',').trim()
+      };
+    }
+    
+    const parts = [];
+    if (address.house_number) parts.push(address.house_number);
+    if (address.road) parts.push(address.road);
+    
+    const primary = parts.join(' ') || suggestion.display_name.split(',')[0];
+    
+    const secondaryParts = [];
+    if (address.city || address.town || address.village) {
+      secondaryParts.push(address.city || address.town || address.village);
+    }
+    if (address.state) secondaryParts.push(address.state);
+    if (address.postcode) secondaryParts.push(address.postcode);
+    
+    const secondary = secondaryParts.join(', ') || suggestion.display_name.split(',').slice(1).join(',').trim();
+    
     return { primary, secondary };
   };
 
   return (
     <div className="ac-wrap" ref={inputRef}>
-      <input
-        id="address"
-        className="input"
-        type="text"
-        placeholder="Start typing your address..."
+      <input 
+        id="address" 
+        className="input" 
+        type="text" 
+        placeholder="Start typing your address..." 
         value={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
-        autoComplete="street-address"
-        role="combobox"
-        aria-expanded={isOpen}
+        autoComplete="street-address" 
+        aria-autocomplete="list" 
+        aria-expanded={isOpen} 
+        aria-owns="addr-list" 
+        aria-controls="addr-list" 
+        role="combobox" 
+        required
       />
       {isOpen && suggestions.length > 0 && (
-        <div className="ac-panel" role="listbox">
-          {suggestions.map((s, idx) => {
-            const { primary, secondary } = formatAddress(s);
+        <div 
+          id="addr-list" 
+          className="ac-panel" 
+          style={{ display: 'block' }} 
+          role="listbox" 
+          aria-label="Address suggestions"
+        >
+          {suggestions.map((suggestion, index) => {
+            const { primary, secondary } = formatAddress(suggestion);
             return (
-              <div
-                key={s.place_id || idx}
-                className={`ac-item ${idx === activeIndex ? "is-active" : ""}`}
-                onClick={() => selectSuggestion(s)}
+              <div 
+                key={suggestion.place_id || index}
+                className={`ac-item ${index === activeIndex ? 'is-active' : ''}`}
+                onClick={() => selectSuggestion(suggestion)}
                 role="option"
-                aria-selected={idx === activeIndex}
+                aria-selected={index === activeIndex}
               >
-                <svg
-                  className="ac-icon"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                    clipRule="evenodd"
-                  />
+                <svg className="ac-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                 </svg>
                 <div className="ac-text">
                   <div className="ac-title">{primary}</div>
