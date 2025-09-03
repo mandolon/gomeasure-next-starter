@@ -1,0 +1,2261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- 1) Disable zoom; include safe-area -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>GoMeasure — Order</title>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet + plugins -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/esri-leaflet"></script>
+
+  <style>
+    /* House number labels on map */
+    .hn-label { 
+      font: 10px/1.1 system-ui, -apple-system, sans-serif; 
+      padding: 1px 2px; 
+      border: 0; 
+      background: rgba(255, 255, 255, 0.9); 
+      color: #333;
+      font-weight: 600;
+      border-radius: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    /* ================================
+       TOKENS / BASE - Consistent font sizing
+    ================================= */
+    :root{
+      --wrap: 1100px;
+      --bg:#fafafb;
+      --card:#fff;
+      --line:#e6e7eb;
+      --ink:#171717;
+      --ink-7:#3a3f45;
+      --ink-5:#6b7280;
+      --accent:#db0f83;
+      --radius:12px;
+      --gap:12px;
+      --sticky-h:64px; /* desktop/base */
+
+      /* Consistent font sizes */
+      --font-xl: 28px;  /* h1 only */
+      --font-lg: 20px;  /* h2, large numbers */
+      --font-md: 16px;  /* body, buttons */
+      --font-sm: 14px;  /* labels, secondary text */
+      --font-xs: 12px;  /* small details, hints */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    html{ -webkit-text-size-adjust:100%; }
+    body{
+      margin:0;background:var(--bg);color:var(--ink);
+      font:400 var(--font-md)/1.5 Figtree,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+      /* Reduce accidental scroll/jitter on taps */
+      touch-action:manipulation;
+      overscroll-behavior-y:none;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .container{max-width:var(--wrap);margin:0 auto;padding:20px}
+    .page{padding-bottom:calc(var(--sticky-h) + 12px)}
+
+    h1{margin:0 0 8px;font-size:var(--font-xl);font-weight:600;letter-spacing:-0.01em}
+    h2{margin:0 0 12px;font-size:var(--font-lg);font-weight:600}
+    h3{font-size:var(--font-md);font-weight:600;margin:16px 0 8px}
+    p{margin:0 0 12px;color:var(--ink-7);line-height:1.5;font-size:var(--font-md)}
+    .muted{color:var(--ink-5);font-size:var(--font-sm)}
+
+    /* Header like index page with back button */
+    .site-header{
+      background:#fff;
+      border-bottom:1px solid var(--line);
+      padding:0;
+      margin-bottom:8px;
+      min-height:64px;
+    }
+    .header-content{
+      max-width:var(--wrap);
+      margin:0 auto;
+      padding:0 20px;
+      display:flex;
+      align-items:center;
+      gap:20px;
+      min-height:64px;
+    }
+    .header-back{
+      width:40px;
+      height:40px;
+      border-radius:50%;
+      border:1px solid var(--line);
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      transition:all .15s;
+      flex-shrink:0;
+    }
+    .header-back:hover{
+      background:#f5f5f5;
+      border-color:#cfd2d6;
+    }
+    .header-back svg{
+      width:20px;
+      height:20px;
+      stroke:var(--ink-7);
+      stroke-width:2;
+      fill:none;
+    }
+
+    /* Mobile: subtle arrow */
+    @media(max-width:720px){
+      .header-back{
+        width:36px;
+        height:36px;
+        border:none;
+        background:transparent;
+      }
+      .header-back svg{
+        width:18px;
+        height:18px;
+        stroke:var(--ink-5);
+      }
+      .header-back:hover{
+        background:rgba(0,0,0,0.05);
+      }
+    }
+
+    /* Inputs & buttons */
+    label{display:block;font-weight:600;margin:8px 0 6px;font-size:var(--font-sm)}
+    /* Keep inputs >=16px to stop iOS focus zoom */
+    .input{
+      width:100%;height:44px;padding:10px 14px;border:1px solid var(--line);
+      border-radius:10px;outline:none;transition:border-color .15s, box-shadow .15s;
+      font:400 var(--font-md)/1.2 Figtree,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:#fff;
+    }
+    .input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(219,15,131,.1)}
+    .input.error{border-color:crimson}
+
+    /* Remove spinners on number */
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+    input[type=number]{-moz-appearance:textfield;appearance:textfield}
+
+    .btn{
+      height:40px;min-width:84px;padding:0 16px;border-radius:8px;border:1px solid transparent;
+      display:inline-flex;align-items:center;justify-content:center;font-weight:600;cursor:pointer;
+      transition:filter .15s;line-height:1;background:#fff;color:var(--ink);
+      font-size:var(--font-md);
+    }
+    /* 1) Prevent any visual "move" on tap */
+    .btn:active{transform:none}
+    .btn-ghost{border-color:var(--line)}
+    .btn-ghost:hover{filter:brightness(1.02)}
+    .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);min-width:120px}
+    .btn-primary:hover{filter:brightness(1.05)}
+
+    /* Cards / layout */
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+    .sidebar-container{display:flex;flex-direction:column;gap:16px}
+
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+    @media(max-width:720px){.grid-2{grid-template-columns:1fr}}
+
+    /* ================================
+       COMPACT STEP NAV (breadcrumbs)
+       3) No horizontal scrolling; wrap instead
+    ================================= */
+    .seqg-step-nav{margin:0 0 16px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+    .seqg-steps{
+      display:flex;align-items:center;gap:8px;list-style:none;padding:0;margin:0;
+      white-space:normal; /* allow wrapping */
+      flex-wrap:wrap;     /* wrap to new lines */
+      overflow:visible;   /* no scroll */
+    }
+    .seqg-steps li{display:flex;align-items:center}
+    .seqg-steps li + li::before{content:"›";margin:0 6px;color:var(--ink-5);opacity:.6}
+    .seqg-steps a{position:relative;display:inline-flex;align-items:baseline;gap:6px;padding:4px 0;
+      font-size:var(--font-sm);line-height:1.2;font-weight:500;color:var(--ink-7)}
+    .seqg-steps a:hover{color:var(--ink)}
+    .seqg-steps .step-index{font-size:var(--font-xs);color:var(--ink-5);font-variant-numeric:tabular-nums}
+    .seqg-steps a[aria-current="step"]{color:var(--ink);font-weight:600}
+    .seqg-steps a[aria-current="step"] .step-index{color:var(--accent)}
+    .seqg-steps a[aria-current="step"]::after{
+      content:"";position:absolute;left:0;right:0;bottom:-13px;height:2px;background:var(--accent);border-radius:2px;
+    }
+
+    /* ================================
+       STEP 1: Property details
+    ================================= */
+    .choices{display:grid;gap:var(--gap)}
+    .choices--2x{grid-template-columns:1fr 1fr}
+    @media(max-width:520px){.choices--2x{grid-template-columns:1fr}}
+    .span-2{grid-column:1/-1}
+
+    .choice-wrap{position:relative}
+    .choice-input{position:absolute;opacity:0;pointer-events:none}
+    .choice{
+      display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:flex-start;
+      border:1px solid var(--line);background:#fff;border-radius:10px;padding:12px;cursor:pointer;transition:.15s;
+      min-height:56px;
+    }
+    .choice:hover{border-color:#cfd2d6}
+    .dot-sel{width:16px;height:16px;border:2px solid #cfd2d6;border-radius:50%;margin-top:2px;position:relative}
+    .choice-input:checked + .choice{border-color:var(--accent);background:rgba(219,15,131,.05)}
+    .choice-input:checked + .choice .dot-sel{border-color:var(--accent);background:var(--accent)}
+    .choice-input:checked + .choice .dot-sel::after{content:"";position:absolute;inset:4px;background:#fff;border-radius:50%}
+
+    .icon{width:40px;height:40px;stroke:var(--accent);fill:none}
+    .title{font-weight:600;font-size:var(--font-md)}
+    .desc{color:var(--ink-5);font-size:var(--font-xs);margin-top:4px;font-weight:400;line-height:1.4}
+
+    .area-row{display:none;align-items:center;gap:6px;margin-top:12px}
+    .area-row .mini{height:40px;border-radius:8px}
+    .unit{font-size:var(--font-sm);color:var(--ink-5);font-weight:600}
+
+    .area-row--split{
+      display:none;
+      grid-template-columns:1fr 1fr;
+      gap:12px;align-items:end;margin-top:12px
+    }
+    .choice-input:checked + .choice .area-row{display:flex}
+    .choice-input:checked + .choice .area-row--split{display:grid}
+
+    .mini-field span.labelline{
+      display:flex;align-items:baseline;gap:6px;font-size:var(--font-xs);color:var(--ink-5);margin:0 0 4px
+    }
+    .unit-top{font-style:normal;font-weight:600;color:var(--ink-5);font-size:var(--font-xs)}
+
+    .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+    @media(max-width:720px){.actions{display:none}}
+
+    .hint{margin-top:20px}
+    a{color:inherit;text-decoration:none}
+    a.underline{text-decoration:underline;text-underline-offset:2px;font-size:var(--font-sm)}
+
+    /* Address autocomplete styles */
+    .ac-wrap{position:relative}
+    .ac-panel{
+      position:absolute;
+      left:0;
+      right:0;
+      top:calc(100% + 4px);
+      z-index:5000;
+      display:none;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:12px;
+      box-shadow:0 8px 24px rgba(0,0,0,.12);
+      max-height:320px;
+      overflow:auto;
+    }
+    .ac-item{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      padding:12px 14px;
+      cursor:pointer;
+      border-bottom:1px solid #f5f5f5;
+      transition:background 0.15s;
+    }
+    .ac-item:last-child{
+      border-bottom:0;
+    }
+    .ac-item:hover,
+    .ac-item.is-active{
+      background:#f8f9fa;
+    }
+    .ac-icon{
+      width:20px;
+      height:20px;
+      color:var(--accent);
+      flex-shrink:0;
+    }
+    .ac-text{
+      flex:1;
+      min-width:0;
+    }
+    .ac-title{
+      font-size:14px;
+      font-weight:600;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .ac-sub{
+      font-size:13px;
+      color:var(--ink-5);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    /* Map section */
+    .map-toggle{
+      margin:16px 0;
+    }
+    .map-toggle-btn{
+      display:inline-flex;
+      align-items:center;
+      padding:10px 14px;
+      border:1px solid var(--accent);
+      border-radius:8px;
+      background:#fff;
+      color:var(--accent);
+      font-weight:600;
+      font-size:14px;
+      cursor:pointer;
+      transition:all 0.2s;
+    }
+    .map-toggle-btn:hover{
+      background:var(--accent);
+      color:#fff;
+    }
+
+    .map-wrap{
+      display:none;
+      margin-top:16px;
+    }
+    .map-wrap.open{
+      display:block;
+    }
+
+    .map-instructions{
+      font-size:13px;
+      color:var(--ink-5);
+      margin-bottom:10px;
+    }
+
+    #map{
+      width:100%;
+      height:400px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:#f0f0f0;
+    }
+    @media (max-width:680px){ 
+      #map{ height:500px; } /* Larger on mobile */
+    }
+
+    .map-results{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-top:12px;
+      padding:12px;
+      background:#f8f9fa;
+      border:1px solid var(--line);
+      border-radius:10px;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .measured-value{
+      font-size:18px;
+      font-weight:700;
+      color:var(--accent);
+    }
+    .btn-save{
+      padding:8px 20px;
+      border:0;
+      border-radius:8px;
+      background:var(--accent);
+      color:#fff;
+      font-size:14px;
+      font-weight:600;
+      cursor:pointer;
+      transition:all 0.2s;
+      white-space:nowrap;
+    }
+    .btn-save:hover{
+      background:#c00e75;
+    }
+    .btn-save:disabled{
+      background:#ccc;
+      cursor:not-allowed;
+    }
+
+    /* Custom marker styles */
+    .custom-map-marker {
+      background: transparent;
+      border: none;
+      animation: dropIn 0.3s ease-out;
+    }
+
+    @keyframes dropIn {
+      from {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* ================================
+       Schedule - Compact Calendar (1 month ahead only)
+    ================================= */
+    .calendar-container{
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:#fff;
+      padding:12px;
+      margin-top:10px;
+    }
+    .calendar-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:12px;
+    }
+    .calendar-month{
+      font-size:14px;
+      font-weight:600;
+      color:var(--ink);
+    }
+    .calendar-nav{
+      display:flex;
+      gap:6px;
+    }
+    .calendar-nav-btn{
+      width:28px;
+      height:28px;
+      border:1px solid var(--line);
+      border-radius:6px;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      transition:all .15s;
+    }
+    .calendar-nav-btn:hover{
+      border-color:var(--accent);
+      background:rgba(219,15,131,.05);
+    }
+    .calendar-nav-btn svg{
+      width:14px;
+      height:14px;
+      stroke:var(--ink-7);
+      stroke-width:2;
+      fill:none;
+    }
+    .calendar-grid{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:2px;
+    }
+    .calendar-day-header{
+      text-align:center;
+      font-size:11px;
+      color:var(--ink-5);
+      font-weight:500;
+      padding:6px 2px;
+      text-transform:uppercase;
+      letter-spacing:0.5px;
+    }
+    .calendar-day{
+      aspect-ratio:1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:6px;
+      font-size:12px;
+      cursor:pointer;
+      transition:all .15s;
+      position:relative;
+      min-height:32px;
+    }
+    .calendar-day:not(.disabled):hover{
+      background:rgba(219,15,131,.1);
+    }
+    .calendar-day.disabled{
+      color:var(--ink-5);
+      opacity:0.4;
+      cursor:not-allowed;
+    }
+    .calendar-day.today{
+      font-weight:600;
+      color:var(--accent);
+    }
+    .calendar-day.selected{
+      background:var(--accent);
+      color:#fff;
+      font-weight:600;
+    }
+    .calendar-day.available::after{
+      content:"";
+      position:absolute;
+      bottom:2px;
+      left:50%;
+      transform:translateX(-50%);
+      width:3px;
+      height:3px;
+      border-radius:50%;
+      background:var(--accent);
+    }
+    .calendar-day.selected.available::after{
+      background:#fff;
+    }
+
+    .disclaimer{
+      margin-top:12px;
+      padding:8px;
+      background:#f8f9fa;
+      border-radius:6px;
+      font-size:12px;
+      color:var(--ink-5);
+    }
+
+    .times{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:16px}
+    @media(max-width:720px){.times{grid-template-columns:repeat(3,1fr)}}
+    .time{padding:8px 6px;border:1px solid var(--line);border-radius:8px;font-size:12px;cursor:pointer;background:#fff;text-align:center}
+    .time[data-selected="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+    /* ================================
+       Contact & Review
+    ================================= */
+    .field{margin:10px 0}
+    .label{display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--ink-7)}
+    .select,.textarea{
+      width:100%;padding:12px 12px;border:1px solid var(--line);
+      border-radius:10px;background:#fff;font-size:16px;color:var(--ink);
+      outline:none;transition:border-color .15s ease, box-shadow .15s ease;
+      font-weight:400;
+    }
+    .select:focus,.textarea:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(219,15,131,.12);
+    }
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:720px){.row{grid-template-columns:1fr}}
+
+    .list{margin:6px 0 0;padding-left:18px}
+    .list li{margin:6px 0;color:var(--ink-7)}
+
+    /* Second contact toggle */
+    .contact-toggle{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin:16px 0;
+      padding:12px;
+      background:#f8f9fa;
+      border-radius:8px;
+      cursor:pointer;
+    }
+    .contact-toggle input[type="checkbox"]{
+      width:16px;
+      height:16px;
+      accent-color:var(--accent);
+    }
+    .contact-toggle label{
+      margin:0;
+      font-weight:500;
+      cursor:pointer;
+    }
+    .second-contact{
+      display:none;
+      margin-top:16px;
+      padding:16px;
+      background:#f8f9fa;
+      border-radius:8px;
+    }
+    .second-contact.show{
+      display:block;
+    }
+
+    /* Preparation link */
+    .prep-link{
+      margin-top:16px;
+      padding:12px;
+      background:rgba(219,15,131,.05);
+      border-radius:8px;
+      border:1px solid rgba(219,15,131,.1);
+    }
+    .prep-link a{
+      color:var(--accent);
+      font-weight:500;
+      text-decoration:none;
+    }
+    .prep-link a:hover{
+      text-decoration:underline;
+    }
+
+    /* ================================
+       What's Included styles (only for Property step)
+    ================================= */
+    .included-list{list-style:none;padding:0;margin:8px 0}
+    .included-list li{display:flex;align-items:flex-start;gap:8px;margin:8px 0;font-size:14px;color:var(--ink-7)}
+    .included-list .check{color:var(--accent);font-weight:600;flex-shrink:0;margin-top:1px}
+
+    /* Section checklist styles */
+    .checklist{list-style:none;padding:0;margin:8px 0}
+    .checklist li{display:flex;align-items:flex-start;gap:8px;margin:6px 0;font-size:14px;color:var(--ink-7)}
+    .checklist .check{color:var(--accent);font-weight:600;flex-shrink:0;margin-top:1px}
+
+    /* ================================
+       Sticky mobile footer with proper background
+    ================================= */
+    .sticky-footer{
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:0;
+      background:#fff;
+      border-top:1px solid var(--line);
+      padding:6px 10px calc(6px + env(safe-area-inset-bottom));
+      box-shadow:0 -8px 16px rgba(0,0,0,.06);
+      z-index:1000;
+    }
+    .sticky-footer .wrap{
+      max-width:var(--wrap);
+      margin:0 auto;
+      padding:0 16px;
+    }
+    .sticky-footer .row{
+      display:grid;
+      gap:8px;
+    }
+    .sticky-footer .btn{
+      height:48px;
+      font-size:16px;
+    }
+    .sticky-footer[data-step="details"] .row{grid-template-columns:1fr}
+    .sticky-footer[data-step="schedule"] .row,
+    .sticky-footer[data-step="contact"] .row,
+    .sticky-footer[data-step="review"] .row{grid-template-columns:1fr 1fr}
+
+    @media(min-width:721px){ 
+      .sticky-footer{display:none} 
+    }
+
+    .hide{display:none !important}
+
+    /* Desktop action buttons under estimate card */
+    .desktop-actions{
+      display:none;
+      margin-top:16px;
+    }
+    @media(min-width:721px){
+      .desktop-actions{
+        display:flex;
+        gap:8px;
+        justify-content:flex-end;
+      }
+    }
+
+    /* Sidebar */
+    .price-row{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0}
+    .price-label{font-size:14px;color:var(--ink-5)}
+    .price-value{font-size:14px;font-weight:500}
+    .price-total{font-size:20px;font-weight:600;color:var(--ink);margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+    .small{font-size:12px;color:var(--ink-5)}
+    .section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 8px}
+
+    /* Review page improvements */
+    .review-grid{display:grid;gap:16px;margin-top:12px}
+    .review-section{padding:12px;background:#f8f9fa;border-radius:8px}
+    .review-section h3{margin-top:0;font-size:14px;color:var(--ink-5);font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+    .review-item{display:flex;justify-content:space-between;margin:8px 0}
+    .review-label{color:var(--ink-5);font-size:14px}
+    .review-value{font-weight:500;font-size:14px}
+
+    /* Section headers - smaller font for field titles */
+    .section-header{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin:20px 0 16px;
+    }
+    .section-number{
+      width:24px;
+      height:24px;
+      border-radius:50%;
+      background:var(--accent);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:var(--font-xs);
+      font-weight:700;
+      flex-shrink:0;
+    }
+    .section-title{
+      font-size:var(--font-sm);
+      font-weight:700;
+      color:var(--ink-7);
+    }
+
+    /* Checkbox styles */
+    .checkbox-group{margin:20px 0}
+    .checkbox-wrap{display:flex;align-items:flex-start;gap:10px;margin:10px 0}
+    .checkbox-wrap input[type="checkbox"]{
+      width:18px;height:18px;margin-top:2px;accent-color:var(--accent);cursor:pointer;
+    }
+    .checkbox-wrap label{
+      margin:0;font-weight:400;font-size:14px;line-height:1.4;cursor:pointer;
+    }
+    .checkbox-wrap label a{color:var(--accent);text-decoration:underline}
+  </style>
+</head>
+<body>
+  <!-- Site Header -->
+  <header class="site-header">
+    <div class="header-content">
+      <button class="header-back" onclick="window.location.href='/';" aria-label="Back to main page">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="container">
+      <header class="page-head">
+        <div>
+          <h1>Complete order details</h1>
+          <p>Only a few steps left to complete the capture service order.</p>
+        </div>
+      </header>
+
+      <div class="grid">
+        <!-- =========================
+             STEP 1: Property Details
+        ========================== -->
+        <section class="card" data-route="details">
+          <!-- Compact step navigation -->
+          <nav class="seqg-step-nav" aria-label="Progress">
+            <ol class="seqg-steps" role="list">
+              <li><a data-crumb="details" href="#/details" aria-current="step">Property</a></li>
+              <li><a data-crumb="schedule" href="#/schedule">Schedule</a></li>
+              <li><a data-crumb="contact" href="#/contact">Contact</a></li>
+              <li><a data-crumb="review" href="#/review">Review</a></li>
+            </ol>
+          </nav>
+
+          <!-- Section 1: Address -->
+          <div class="section-header">
+            <div class="section-number">1</div>
+            <div class="section-title">Property Address</div>
+          </div>
+
+          <div class="ac-wrap" id="ac">
+            <input id="address" class="input" type="text" placeholder="Start typing your address..." 
+                   autocomplete="street-address" aria-autocomplete="list" aria-expanded="false" 
+                   aria-owns="addr-list" aria-controls="addr-list" role="combobox" required>
+            <div id="addr-list" class="ac-panel" role="listbox" aria-label="Address suggestions"></div>
+          </div>
+
+          <!-- Section 2: Property Type -->
+          <div class="section-header">
+            <div class="section-number">2</div>
+            <div class="section-title">Property Type</div>
+          </div>
+          <div class="choices choices--2x" role="radiogroup" aria-label="Property type">
+            <div class="choice-wrap">
+              <input class="choice-input" type="radio" name="propType" id="prop-res" value="residential" checked>
+              <label class="choice" for="prop-res">
+                <span class="dot-sel" aria-hidden="true"></span>
+                <span class="title">Residential</span>
+              </label>
+            </div>
+            <div class="choice-wrap">
+              <input class="choice-input" type="radio" name="propType" id="prop-com" value="commercial">
+              <label class="choice" for="prop-com">
+                <span class="dot-sel" aria-hidden="true"></span>
+                <span class="title">Commercial</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 3: Capture Scope -->
+          <div class="section-header">
+            <div class="section-number">3</div>
+            <div class="section-title">What would you like captured?</div>
+          </div>
+
+          <div class="choices choices--2x" role="radiogroup" aria-label="Capture scope">
+            <!-- Interior -->
+            <div class="choice-wrap">
+              <input class="choice-input" type="radio" name="capScope" id="cap-int" value="interior" checked>
+              <label class="choice" for="cap-int">
+                <span class="dot-sel" aria-hidden="true"></span>
+                <svg class="icon" viewBox="0 0 64 64" aria-hidden="true">
+                  <path d="M8 50 V18 l24-10 24 10 v32 H8z M8 26 h48" stroke-width="2"/>
+                  <path d="M20 34 h12 v12 H20z" stroke-width="2"/>
+                </svg>
+                <div>
+                  <div class="title">Interior Only</div>
+                  <div class="desc">3D capture of interior rooms and circulation. Fast and precise for planning + measurements.</div>
+
+                  <div class="area-row">
+                    <input id="area-int" class="input mini" type="number" inputmode="numeric" placeholder="Enter area" min="0">
+                    <span class="unit">sq&nbsp;ft</span>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Exterior -->
+            <div class="choice-wrap">
+              <input class="choice-input" type="radio" name="capScope" id="cap-ext" value="exterior">
+              <label class="choice" for="cap-ext">
+                <span class="dot-sel" aria-hidden="true"></span>
+                <svg class="icon" viewBox="0 0 64 64" aria-hidden="true">
+                  <path d="M8 44 V28 l12-8 12 8 v16z M40 40 l10-6 8 6 v6 H40z" stroke-width="2"/>
+                </svg>
+                <div>
+                  <div class="title">Exterior Only</div>
+                  <div class="desc">3D capture of facades and site context—ideal for elevations, setbacks, and envelope checks.</div>
+
+                  <div class="area-row">
+                    <input id="area-ext" class="input mini" type="number" inputmode="numeric" placeholder="Enter area" min="0">
+                    <span class="unit">sq&nbsp;ft</span>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Interior & Exterior -->
+            <div class="choice-wrap span-2">
+              <input class="choice-input" type="radio" name="capScope" id="cap-both" value="interior-exterior">
+              <label class="choice" for="cap-both">
+                <span class="dot-sel" aria-hidden="true"></span>
+                <svg class="icon" viewBox="0 0 64 64" aria-hidden="true">
+                  <path d="M6 50 V26 l14-10 14 10 v24z M34 42 l10-8 14 8 v8 H34z M6 50 h52" stroke-width="2"/>
+                </svg>
+                <div>
+                  <div class="title">Interior &amp; Exterior</div>
+                  <div class="desc">Complete capture—interior spaces plus walkable exterior for coordination and BIM-ready context.</div>
+
+                  <div class="area-row area-row--split">
+                    <label class="mini-field" for="area-both-int">
+                      <span class="labelline"><strong>Interior</strong><em class="unit-top">(sq ft)</em></span>
+                      <input id="area-both-int" class="input mini" type="number" inputmode="numeric" placeholder="Enter area" min="0">
+                    </label>
+
+                    <label class="mini-field" for="area-both-ext">
+                      <span class="labelline"><strong>Exterior</strong><em class="unit-top">(sq ft)</em></span>
+                      <input id="area-both-ext" class="input mini" type="number" inputmode="numeric" placeholder="Enter area" min="0">
+                    </label>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Map Toggle -->
+          <div class="map-toggle">
+            <button id="openEstimator" class="map-toggle-btn" type="button">
+              Measure on map
+            </button>
+          </div>
+
+          <!-- Map -->
+          <div id="mapWrap" class="map-wrap">
+            <div class="map-instructions">Draw a polygon around your property</div>
+            <div id="map"></div>
+
+            <div class="map-results">
+              <div class="measured-value"><span id="areaOut">0</span> sq ft</div>
+              <button id="saveBtn" class="btn-save" type="button" disabled>Save to area field</button>
+            </div>
+          </div>
+
+          <div class="hint">
+            <a href="#" class="underline" id="estimateLink">How to estimate property size</a>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" data-next="schedule">Next</button>
+          </div>
+        </section>
+
+        <!-- Schedule -->
+        <section class="card" data-route="schedule" hidden>
+          <!-- Compact step navigation -->
+          <nav class="seqg-step-nav" aria-label="Progress">
+            <ol class="seqg-steps" role="list">
+              <li><a data-crumb="details" href="#/details">Property</a></li>
+              <li><a data-crumb="schedule" href="#/schedule" aria-current="step">Schedule</a></li>
+              <li><a data-crumb="contact" href="#/contact">Contact</a></li>
+              <li><a data-crumb="review" href="#/review">Review</a></li>
+            </ol>
+          </nav>
+
+          <h2 tabindex="-1">Choose a time</h2>
+          <p class="muted">Choose a start time. The site visit takes about 4 hours 30 minutes.</p>
+
+          <div class="calendar-container">
+            <div class="calendar-header">
+              <div class="calendar-month" id="calendarMonth">December 2024</div>
+              <div class="calendar-nav">
+                <button class="calendar-nav-btn" id="prevMonth" type="button">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M15 18l-6-6 6-6"/>
+                  </svg>
+                </button>
+                <button class="calendar-nav-btn" id="nextMonth" type="button">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid">
+              <!-- Calendar will be populated by JavaScript -->
+            </div>
+          </div>
+
+          <div class="disclaimer">
+            <strong>Booking Policy:</strong> Appointments can be rescheduled up to 24 hours before the scheduled time. Same-day cancellations may incur a fee. We'll confirm your appointment 24 hours in advance.
+          </div>
+
+          <div class="field">
+            <div class="label">Available times</div>
+            <div id="timeList" class="times" aria-label="Available times"></div>
+          </div>
+
+          <p id="scheduleSummary" class="muted" style="margin-top:8px"></p>
+
+          <div class="actions">
+            <button class="btn btn-ghost" data-prev="details">Back</button>
+            <div style="flex:1"></div>
+            <button class="btn btn-primary" data-next="contact">Next</button>
+          </div>
+        </section>
+
+        <!-- Contact -->
+        <section class="card" data-route="contact" hidden>
+          <!-- Compact step navigation -->
+          <nav class="seqg-step-nav" aria-label="Progress">
+            <ol class="seqg-steps" role="list">
+              <li><a data-crumb="details" href="#/details">Property</a></li>
+              <li><a data-crumb="schedule" href="#/schedule">Schedule</a></li>
+              <li><a data-crumb="contact" href="#/contact" aria-current="step">Contact</a></li>
+              <li><a data-crumb="review" href="#/review">Review</a></li>
+            </ol>
+          </nav>
+
+          <h2 tabindex="-1">Who is the site contact?</h2>
+          <p>We'll contact this person when arriving on site.</p>
+
+          <div class="row" style="margin-top:8px">
+            <div class="field">
+              <label class="label" for="cname">Name</label>
+              <input class="input" id="cname" name="contactName" placeholder="Enter your full name" />
+            </div>
+            <div class="field">
+              <label class="label" for="cphone">Phone</label>
+              <input class="input" id="cphone" name="contactPhone" placeholder="Enter phone number" />
+            </div>
+          </div>
+
+          <div class="contact-toggle" onclick="toggleSecondContact()">
+            <input type="checkbox" id="addSecondContact">
+            <label for="addSecondContact">Add a second contact person</label>
+          </div>
+
+          <div class="second-contact" id="secondContactSection">
+            <h3>Second Contact</h3>
+            <div class="row">
+              <div class="field">
+                <label class="label" for="cname2">Name</label>
+                <input class="input" id="cname2" name="contactName2" placeholder="Enter full name" />
+              </div>
+              <div class="field">
+                <label class="label" for="cphone2">Phone</label>
+                <input class="input" id="cphone2" name="contactPhone2" placeholder="Enter phone number" />
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label" for="cemail">Email</label>
+            <input class="input" id="cemail" name="contactEmail" type="email" placeholder="Enter email address" />
+          </div>
+
+          <div class="field">
+            <label class="label" for="access">Access instructions</label>
+            <textarea class="textarea" id="access" name="access" rows="3" placeholder="Enter access instructions (parking, lock box code, gate code, etc.)"></textarea>
+          </div>
+
+          <div class="prep-link">
+            <a href="#" id="prepLink">📋 How to prepare for scans</a>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-ghost" data-prev="schedule">Back</button>
+            <div style="flex:1"></div>
+            <button class="btn btn-primary" data-next="review">Next</button>
+          </div>
+        </section>
+
+        <!-- Review -->
+        <section class="card" data-route="review" hidden>
+          <!-- Compact step navigation -->
+          <nav class="seqg-step-nav" aria-label="Progress">
+            <ol class="seqg-steps" role="list">
+              <li><a data-crumb="details" href="#/details">Property</a></li>
+              <li><a data-crumb="schedule" href="#/schedule">Schedule</a></li>
+              <li><a data-crumb="contact" href="#/contact">Contact</a></li>
+              <li><a data-crumb="review" href="#/review" aria-current="step">Review</a></li>
+            </ol>
+          </nav>
+
+          <h2 tabindex="-1">Review &amp; confirm</h2>
+
+          <div class="review-grid">
+            <div class="review-section">
+              <h3>Property Details</h3>
+              <div class="review-item">
+                <span class="review-label">Address</span>
+                <span class="review-value" id="rev-address">—</span>
+              </div>
+              <div class="review-item">
+                <span class="review-label">Type</span>
+                <span class="review-value" id="rev-type">—</span>
+              </div>
+              <div class="review-item">
+                <span class="review-label">Scope</span>
+                <span class="review-value" id="rev-scope">—</span>
+              </div>
+              <div class="review-item">
+                <span class="review-label">Area</span>
+                <span class="review-value" id="rev-area">—</span>
+              </div>
+            </div>
+
+            <div class="review-section">
+              <h3>Schedule</h3>
+              <div class="review-item">
+                <span class="review-label">Date</span>
+                <span class="review-value" id="rev-date">—</span>
+              </div>
+              <div class="review-item">
+                <span class="review-label">Time</span>
+                <span class="review-value" id="rev-time">—</span>
+              </div>
+            </div>
+
+            <div class="review-section">
+              <h3>Contact</h3>
+              <div class="review-item">
+                <span class="review-label">Primary Contact</span>
+                <span class="review-value" id="rev-contact">—</span>
+              </div>
+              <div class="review-item">
+                <span class="review-label">Phone</span>
+                <span class="review-value" id="rev-phone">—</span>
+              </div>
+              <div class="review-item" id="rev-contact2-row" style="display:none">
+                <span class="review-label">Second Contact</span>
+                <span class="review-value" id="rev-contact2">—</span>
+              </div>
+              <div class="review-item" id="rev-phone2-row" style="display:none">
+                <span class="review-label">Second Phone</span>
+                <span class="review-value" id="rev-phone2">—</span>
+              </div>
+              <div class="review-item">
+                <span class="review-label">Email</span>
+                <span class="review-value" id="rev-email">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="checkbox-group">
+            <div class="checkbox-wrap">
+              <input type="checkbox" id="agree-terms">
+              <label for="agree-terms">I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></label>
+            </div>
+            <div class="checkbox-wrap">
+              <input type="checkbox" id="agree-payment">
+              <label for="agree-payment">I authorize the payment and understand the cancellation policy</label>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-ghost" data-prev="contact">Back</button>
+            <div style="flex:1"></div>
+            <button class="btn btn-primary" id="placeOrderBtn">Place order</button>
+          </div>
+        </section>
+
+        <!-- =========================
+             SIDEBARS (context-specific)
+        ========================== -->
+        <aside class="sidebar-container">
+          <!-- What's Included Card (only for Property step) -->
+          <div class="card" id="whatsIncludedCard" aria-label="What's Included">
+            <h2 style="font-size:18px">What's included</h2>
+            <ul class="included-list" id="included-list">
+              <!-- Residential items (default) -->
+              <li><span class="check">✓</span> Professional 3D scanning technician</li>
+              <li><span class="check">✓</span> High-precision LiDAR capture</li>
+              <li><span class="check">✓</span> Point cloud data processing</li>
+              <li><span class="check">✓</span> BIM-ready deliverables</li>
+              <li><span class="check">✓</span> 2D floor plans &amp; elevations</li>
+              <li><span class="check">✓</span> 3D model in multiple formats</li>
+              <li><span class="check">✓</span> Virtual walkthrough access</li>
+              <li><span class="check">✓</span> Measurement accuracy ±1/8"</li>
+            </ul>
+            <p class="small" style="margin-top:12px">All data delivered within 48 hours</p>
+          </div>
+
+          <!-- Schedule Checklist -->
+          <div class="card" id="scheduleChecklist" style="display:none" aria-label="Schedule Items">
+            <h2 style="font-size:18px">Schedule checklist</h2>
+            <ul class="checklist">
+              <li><span class="check">✓</span> Date and time selected</li>
+              <li><span class="check">✓</span> Site accessibility confirmed</li>
+              <li><span class="check">✓</span> Weather backup plan in place</li>
+              <li><span class="check">✓</span> Equipment requirements verified</li>
+            </ul>
+          </div>
+
+          <!-- Contact Checklist -->
+          <div class="card" id="contactChecklist" style="display:none" aria-label="Contact Items">
+            <h2 style="font-size:18px">Contact checklist</h2>
+            <ul class="checklist">
+              <li><span class="check">✓</span> Primary contact information</li>
+              <li><span class="check">✓</span> Site access instructions</li>
+              <li><span class="check">✓</span> Communication preferences set</li>
+              <li><span class="check">✓</span> Emergency contact available</li>
+            </ul>
+          </div>
+
+          <!-- Review Checklist -->
+          <div class="card" id="reviewChecklist" style="display:none" aria-label="Review Items">
+            <h2 style="font-size:18px">Final checklist</h2>
+            <ul class="checklist">
+              <li><span class="check">✓</span> Property details verified</li>
+              <li><span class="check">✓</span> Schedule confirmed</li>
+              <li><span class="check">✓</span> Contact information complete</li>
+              <li><span class="check">✓</span> Terms and conditions accepted</li>
+            </ul>
+          </div>
+
+          <!-- Summary Card -->
+          <div class="card" aria-label="Summary">
+            <h2 style="font-size:18px">Estimate</h2>
+            <div style="margin-top:8px">
+              <div class="price-row" id="price-interior" style="display:none">
+                <span class="price-label">Interior</span>
+                <span class="price-value">$—</span>
+              </div>
+              <div class="price-row" id="price-exterior" style="display:none">
+                <span class="price-label">Exterior</span>
+                <span class="price-value">$—</span>
+              </div>
+              <div class="price-row price-total">
+                <span>Total</span>
+                <span id="total">$—</span>
+              </div>
+              <p class="small" style="margin-top:6px">*Tax not included</p>
+            </div>
+          </div>
+
+          <!-- Desktop action buttons -->
+          <div class="desktop-actions" id="desktopActions">
+            <button class="btn btn-ghost" id="desktopBack" style="display:none">Back</button>
+            <button class="btn btn-primary" id="desktopNext">Next</button>
+          </div>
+        </aside>
+      </div>
+
+      <div class="sticky-spacer"></div>
+    </div>
+
+    <!-- Sticky mobile footer -->
+    <div class="sticky-footer" id="stickyBar" data-step="details" role="region" aria-label="Step actions">
+      <div class="wrap">
+        <div class="row">
+          <button class="btn btn-ghost hide" id="stickyBack">Back</button>
+          <button class="btn btn-primary" id="stickyNext">Next</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function(){
+      /* -----------------------------
+         Dynamic sticky footer padding
+      ------------------------------*/
+      const bar = document.getElementById('stickyBar');
+      const container = document.querySelector('.container');
+
+      function setPadding(){
+        const h = bar.offsetHeight || 0;
+        document.documentElement.style.setProperty('--sticky-pad', (h + 8) + 'px');
+        container.style.paddingBottom = `var(--sticky-pad)`;
+      }
+
+      setPadding();
+      addEventListener('resize', setPadding);
+      new MutationObserver(setPadding).observe(bar, {attributes:true, childList:true, subtree:true});
+      /* -----------------------------
+         Router + state
+      ------------------------------*/
+      const routes = ["details","schedule","contact","review"];
+      const sections = routes.map(r => document.querySelector(`[data-route="${r}"]`));
+      const crumbs   = routes.map(r => document.querySelector(`[data-crumb="${r}"]`));
+      const STATE_KEY = "orderStateDemo";
+      let S = JSON.parse(sessionStorage.getItem(STATE_KEY) || "{}");
+      const save = () => sessionStorage.setItem(STATE_KEY, JSON.stringify(S));
+
+      // What's included lists
+      const residentialList = [
+        '<li><span class="check">✓</span> Professional 3D scanning technician</li>',
+        '<li><span class="check">✓</span> High-precision LiDAR capture</li>',
+        '<li><span class="check">✓</span> Point cloud data processing</li>',
+        '<li><span class="check">✓</span> BIM-ready deliverables</li>',
+        '<li><span class="check">✓</span> 2D floor plans &amp; elevations</li>',
+        '<li><span class="check">✓</span> 3D model in multiple formats</li>',
+        '<li><span class="check">✓</span> Virtual walkthrough access</li>',
+        '<li><span class="check">✓</span> Measurement accuracy ±1/8"</li>'
+      ];
+
+      const commercialList = [
+        '<li><span class="check">✓</span> Certified scanning professionals</li>',
+        '<li><span class="check">✓</span> Industrial-grade LiDAR equipment</li>',
+        '<li><span class="check">✓</span> MEP system documentation</li>',
+        '<li><span class="check">✓</span> Revit-ready BIM models</li>',
+        '<li><span class="check">✓</span> Clash detection support</li>',
+        '<li><span class="check">✓</span> As-built documentation</li>',
+        '<li><span class="check">✓</span> COBie data extraction</li>',
+        '<li><span class="check">✓</span> Professional liability insurance</li>'
+      ];
+
+      function show(route){
+        const idx = Math.max(0, routes.indexOf(route));
+        sections.forEach((el,i)=> el.hidden = i !== idx);
+
+        // Update all breadcrumbs in all sections
+        document.querySelectorAll('.seqg-steps a').forEach(a => {
+          const crumbRoute = a.getAttribute('data-crumb') || a.getAttribute('href').replace('#/', '');
+          a.setAttribute('aria-current', crumbRoute === route ? 'step' : 'false');
+        });
+
+        sections[idx].querySelector("h2")?.focus();
+        updateSticky(route);
+        updateSidebar(route);
+        updateDesktopActions(route);
+        if(route==="review"){ renderReview(); }
+        // Scroll to top when changing sections
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      function onRoute(){
+        const r = location.hash.replace(/^#\//,'') || "details";
+        if(!routes.includes(r)){ location.hash="#/details"; return; }
+        show(r);
+      }
+      window.addEventListener("hashchange", onRoute);
+      window.addEventListener("DOMContentLoaded", onRoute);
+
+      /* -----------------------------
+         Map functionality
+      ------------------------------*/
+      const openEstimator = document.getElementById('openEstimator');
+      const mapWrap = document.getElementById('mapWrap');
+      const saveMapBtn = document.getElementById('saveBtn');
+      const areaOut = document.getElementById('areaOut');
+      let map, drawCtl, drawn, pin = null, currentSqFt = 0;
+
+      openEstimator.addEventListener('click', () => {
+        const open = !mapWrap.classList.contains('open');
+        mapWrap.classList.toggle('open', open);
+
+        if (open && !map) initMap();
+        if (map) setTimeout(() => map.invalidateSize(), 100);
+      });
+
+      function initMap() {
+        const isTouch = window.matchMedia('(pointer:coarse)').matches;
+
+        map = L.map('map', { 
+          zoomControl: true, 
+          scrollWheelZoom: !isTouch,
+          attributionControl: false, // Completely remove attribution control
+          // Performance optimizations
+          preferCanvas: true, // Use canvas renderer for better performance
+          zoomAnimation: !isTouch, // Disable zoom animations on mobile
+          fadeAnimation: false, // Disable tile fade for faster rendering
+          markerZoomAnimation: !isTouch // Disable marker animations on mobile
+        }).setView([38.5816, -121.4944], 12);
+
+        // Add tiles without attribution
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+          maxZoom: 20, 
+          updateWhenIdle: true, // Update tiles only when map stops moving
+          updateWhenZooming: false, // Don't update while zooming
+          keepBuffer: 2 // Reduce tile buffer for mobile
+        }).addTo(map);
+
+        // Parcels overlay - with performance settings
+        L.esri.dynamicMapLayer({
+          url: 'https://mapservices.gis.saccounty.net/arcgis/rest/services/PARCELS/MapServer',
+          opacity: 0.6,
+          attribution: '', // Remove parcel attribution
+          updateInterval: 200 // Throttle updates
+        }).addTo(map);
+
+        // House number labels from National Address Database
+        // Only render at zoom >= 18 for performance
+        let addressLayer = null;
+        let updateTimeout = null;
+
+        function loadAddressLabels() {
+          // Clear any pending updates
+          if (updateTimeout) {
+            clearTimeout(updateTimeout);
+          }
+
+          if (map.getZoom() >= 18) {
+            // Throttle address loading
+            updateTimeout = setTimeout(() => {
+              if (!addressLayer) {
+                // Create the feature layer with California filter
+                addressLayer = L.esri.featureLayer({
+                  url: 'https://services.arcgis.com/xOi1kZaI0eWDREZv/ArcGIS/rest/services/Address_Points_from_National_Address_Database_view/FeatureServer/0',
+                  where: "State = 'CA'",
+                  // Performance limits
+                  maxFeatures: 1000, // Reduced from 2000
+                  precision: 5, // Reduce coordinate precision
+                  simplifyFactor: 0.5, // Simplify geometries
+                  attribution: '', // No attribution for this layer
+                  // Custom rendering for house numbers
+                  pointToLayer: function(geojson, latlng) {
+                    // Skip if no address number
+                    const addNum = geojson.properties.Add_Number || geojson.properties.AddNo_Full;
+                    if (!addNum) return null;
+
+                    // Create invisible marker with permanent tooltip
+                    const marker = L.circleMarker(latlng, {
+                      radius: 0,
+                      opacity: 0,
+                      fillOpacity: 0
+                    });
+
+                    // Attach house number as tooltip
+                    marker.bindTooltip(String(addNum), {
+                      permanent: true,
+                      direction: 'center',
+                      className: 'hn-label',
+                      offset: [0, 0]
+                    }).openTooltip();
+
+                    return marker;
+                  }
+                });
+
+                addressLayer.addTo(map);
+              }
+            }, 300); // 300ms delay to prevent rapid loading
+          } else {
+            // Remove layer when zoomed out
+            if (addressLayer) {
+              map.removeLayer(addressLayer);
+              addressLayer = null;
+            }
+          }
+        }
+
+        // Monitor zoom changes with debouncing
+        map.on('zoomend', loadAddressLabels);
+
+        // Don't load addresses while moving at high zoom (performance)
+        map.on('movestart', () => {
+          if (updateTimeout) {
+            clearTimeout(updateTimeout);
+          }
+        });
+
+        map.on('moveend', () => {
+          if (map.getZoom() >= 18) {
+            loadAddressLabels();
+          }
+        });
+
+        // Initial check
+        loadAddressLabels();
+
+        // Draw tools
+        drawn = new L.FeatureGroup().addTo(map);
+        drawCtl = new L.Control.Draw({
+          position: 'topleft',
+          draw: {
+            polygon: { 
+              allowIntersection: false, 
+              showArea: true, 
+              shapeOptions: { 
+                color: '#db0f83', 
+                weight: 2,
+                opacity: 0.8 // Slightly transparent for performance
+              } 
+            },
+            polyline: false, 
+            rectangle: false, 
+            circle: false, 
+            marker: false, 
+            circlemarker: false
+          },
+          edit: { 
+            featureGroup: drawn, 
+            edit: true, 
+            remove: true 
+          }
+        });
+        map.addControl(drawCtl);
+
+        // Area calculation
+        if (!L.GeometryUtil) L.GeometryUtil = {};
+        L.GeometryUtil.geodesicArea = function (latLngs) {
+          let area = 0, len = latLngs.length, d2r = Math.PI/180, R = 6378137;
+          if (len > 2) {
+            for (let i = 0; i < len; i++) {
+              const p1 = latLngs[i], p2 = latLngs[(i + 1) % len];
+              area += ((p2.lng - p1.lng) * d2r) * (2 + Math.sin(p1.lat * d2r) + Math.sin(p2.lat * d2r));
+            }
+          }
+          return Math.abs(area * R * R / 2);
+        };
+
+        const m2ToSf = m2 => m2 * 10.76391041671;
+        const fmt = (n) => (Math.round(n*10)/10).toLocaleString();
+
+        function recompute() {
+          let m2 = 0;
+          drawn.eachLayer(layer => {
+            if (layer instanceof L.Polygon) {
+              const ring = layer.getLatLngs()[0];
+              if (ring && ring.length > 2) {
+                m2 += L.GeometryUtil.geodesicArea(ring);
+              }
+            }
+          });
+          currentSqFt = Math.max(0, Math.round(m2ToSf(m2)));
+          areaOut.textContent = fmt(currentSqFt);
+          saveMapBtn.disabled = currentSqFt === 0;
+        }
+
+        map.on(L.Draw.Event.CREATED, e => { 
+          drawn.clearLayers(); 
+          drawn.addLayer(e.layer); 
+          recompute(); 
+        });
+        map.on(L.Draw.Event.EDITED, recompute);
+        map.on(L.Draw.Event.DELETED, recompute);
+
+        // Debounced resize handler for performance
+        let resizeTimeout;
+        const handleResize = () => {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            map.invalidateSize();
+          }, 100);
+        };
+
+        addEventListener('resize', handleResize);
+        addEventListener('orientationchange', handleResize);
+      }
+
+      // Custom marker icon
+      function createCustomIcon() {
+        return L.divIcon({
+          html: `
+            <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 0C7.163 0 0 7.163 0 16c0 12 16 24 16 24s16-12 16-24c0-8.837-7.163-16-16-16z" fill="#db0f83"/>
+              <circle cx="16" cy="16" r="6" fill="white"/>
+              <circle cx="16" cy="16" r="3" fill="#db0f83"/>
+            </svg>
+          `,
+          className: 'custom-map-marker',
+          iconSize: [32, 40],
+          iconAnchor: [16, 40],
+          popupAnchor: [0, -40]
+        });
+      }
+
+      // Smart Save Logic from map
+      saveMapBtn.addEventListener('click', () => {
+        if (!currentSqFt) return;
+
+        const scope = document.querySelector('input[name="capScope"]:checked')?.value || 'interior';
+
+        if (scope === 'interior-exterior') {
+          // For Interior & Exterior: save to first empty field, or exterior if both full
+          if (!areaBothInt.value) {
+            areaBothInt.value = currentSqFt;
+            S.areaBothInt = currentSqFt;
+          } else if (!areaBothExt.value) {
+            areaBothExt.value = currentSqFt;
+            S.areaBothExt = currentSqFt;
+          } else {
+            areaBothExt.value = currentSqFt;
+            S.areaBothExt = currentSqFt;
+          }
+        } else {
+          // For single scopes, save to their input
+          const input = scope === 'interior' ? areaInt : areaExt;
+          input.value = currentSqFt;
+          if (scope === 'interior') {
+            S.areaInt = currentSqFt;
+          } else {
+            S.areaExt = currentSqFt;
+          }
+        }
+
+        save();
+        updateSidebar();
+      });
+
+      /* -----------------------------
+         Address autocomplete
+      ------------------------------*/
+      const address = document.getElementById('address');
+      const panel = document.getElementById('addr-list');
+      let cache = [], activeIndex = -1, debounceId = null;
+
+      const CA_VIEWBOX = '-124.48,32.53,-114.13,42.01';
+
+      function showPanel() { 
+        panel.style.display = 'block'; 
+        address.setAttribute('aria-expanded', 'true'); 
+      }
+
+      function hidePanel() { 
+        panel.style.display = 'none'; 
+        address.setAttribute('aria-expanded', 'false'); 
+        activeIndex = -1; 
+      }
+
+      function clearPanel() { 
+        panel.innerHTML = ''; 
+      }
+
+      function render(items) {
+        clearPanel();
+
+        if (!items.length) {
+          const empty = document.createElement('div');
+          empty.className = 'ac-item';
+          empty.style.cursor = 'default';
+          empty.innerHTML = '<div class="ac-text"><div class="ac-sub">No results found</div></div>';
+          panel.appendChild(empty);
+          showPanel();
+          return;
+        }
+
+        items.forEach((r, idx) => {
+          const div = document.createElement('div');
+          div.className = 'ac-item';
+          div.role = 'option';
+          div.id = 'addr-opt-' + idx;
+          div.innerHTML = `
+            <svg class="ac-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+            <div class="ac-text">
+              <div class="ac-title">${r.primary}</div>
+              <div class="ac-sub">${r.city}, CA${r.zip ? ' ' + r.zip : ''}</div>
+            </div>`;
+
+          div.addEventListener('mouseenter', () => highlight(idx));
+          div.addEventListener('mouseleave', () => unhighlight(idx));
+          div.addEventListener('click', () => select(idx));
+          panel.appendChild(div);
+        });
+
+        showPanel();
+      }
+
+      function highlight(idx) {
+        const items = panel.querySelectorAll('.ac-item');
+        items.forEach(i => i.classList.remove('is-active'));
+        if (items[idx]) {
+          items[idx].classList.add('is-active');
+          activeIndex = idx;
+          address.setAttribute('aria-activedescendant', 'addr-opt-' + idx);
+        }
+      }
+
+      function unhighlight(idx) {
+        const items = panel.querySelectorAll('.ac-item');
+        if (items[idx]) {
+          items[idx].classList.remove('is-active');
+        }
+        activeIndex = -1;
+        address.removeAttribute('aria-activedescendant');
+      }
+
+      function select(idx) {
+        const item = cache[idx];
+        if (!item) return;
+
+        address.value = `${item.primary}, ${item.city}, CA${item.zip ? ' ' + item.zip : ''}`;
+        S.address = address.value;
+        save();
+        hidePanel();
+
+        // Auto-open map and center pin
+        if (!mapWrap.classList.contains('open')) {
+          openEstimator.click();
+        }
+
+        setTimeout(() => {
+          if (map) {
+            const center = L.latLng(parseFloat(item.lat), parseFloat(item.lon));
+            map.setView(center, 18);
+            if (pin) map.removeLayer(pin);
+            pin = L.marker(center, { icon: createCustomIcon() }).addTo(map);
+          }
+        }, 200);
+      }
+
+      async function searchCA(q) {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&countrycodes=us&bounded=1&viewbox=${CA_VIEWBOX}&q=${encodeURIComponent(q)}`;
+
+        try {
+          const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+          if (!res.ok) return [];
+
+          const data = await res.json();
+          const filtered = data.filter(d => {
+            const a = d.address || {};
+            const inCA = (a.state === 'California') || (a.state_code === 'CA');
+            const isAddr = ['house', 'residential', 'building', 'yes', 'address', 'road'].includes(d.type) || a.house_number;
+            return inCA && isAddr;
+          });
+
+          return filtered.map(d => {
+            const a = d.address || {};
+            const num = a.house_number || '';
+            const road = a.road || a.pedestrian || a.footway || a.path || '';
+            const primary = (num && road) ? `${num} ${road}` : (d.name || d.display_name.split(',')[0]);
+            const city = a.city || a.town || a.village || a.hamlet || a.municipality || a.county || '';
+            const zip = a.postcode || '';
+            return { primary, city, zip, lat: d.lat, lon: d.lon };
+          });
+        } catch(e) {
+          return [];
+        }
+      }
+
+      address.addEventListener('input', () => {
+        const q = address.value.trim();
+        S.address = q;
+        save();
+        clearTimeout(debounceId);
+
+        if (q.length < 3) {
+          hidePanel();
+          clearPanel();
+          return;
+        }
+
+        debounceId = setTimeout(async () => {
+          try {
+            cache = await searchCA(q);
+            render(cache);
+          } catch(e) {
+            hidePanel();
+          }
+        }, 300);
+      });
+
+      address.addEventListener('keydown', (e) => {
+        const items = panel.querySelectorAll('.ac-item');
+        if (!items.length) return;
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          const n = (activeIndex + 1) % items.length;
+          highlight(n);
+          items[n].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          const p = (activeIndex - 1 + items.length) % items.length;
+          highlight(p);
+          items[p].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter') {
+          if (activeIndex >= 0) {
+            e.preventDefault();
+            select(activeIndex);
+          }
+        } else if (e.key === 'Escape') {
+          hidePanel();
+        }
+      });
+
+      address.addEventListener('focus', () => {
+        if (panel.children.length) showPanel();
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!document.getElementById('ac').contains(e.target)) hidePanel();
+      });
+
+      /* -----------------------------
+         Step 1: Property details
+      ------------------------------*/
+      const areaInt = document.getElementById('area-int');
+      const areaExt = document.getElementById('area-ext');
+      const areaBothInt = document.getElementById('area-both-int');
+      const areaBothExt = document.getElementById('area-both-ext');
+
+      // Restore saved values
+      address.value = S.address || "";
+      areaInt.value = S.areaInt || "";
+      areaExt.value = S.areaExt || "";
+      areaBothInt.value = S.areaBothInt || "";
+      areaBothExt.value = S.areaBothExt || "";
+
+      address.addEventListener('input', () => { address.classList.remove('error'); });
+      areaInt.addEventListener('input', () => { S.areaInt = areaInt.value; save(); updateSidebar(); });
+      areaExt.addEventListener('input', () => { S.areaExt = areaExt.value; save(); updateSidebar(); });
+      areaBothInt.addEventListener('input', () => { S.areaBothInt = areaBothInt.value; save(); updateSidebar(); });
+      areaBothExt.addEventListener('input', () => { S.areaBothExt = areaBothExt.value; save(); updateSidebar(); });
+
+      const propTypeInputs = document.querySelectorAll('input[name="propType"]');
+      if(S.propType) {
+        const selected = document.getElementById(S.propType === 'residential' ? 'prop-res' : 'prop-com');
+        if(selected) selected.checked = true;
+      }
+      propTypeInputs.forEach(input => {
+        input.addEventListener('change', () => {
+          S.propType = input.value;
+          save();
+          updateIncludedList();
+        });
+      });
+
+      const scopeInputs = document.querySelectorAll('input[name="capScope"]');
+      if(S.capScope) {
+        const scopeMap = {'interior': 'cap-int', 'exterior': 'cap-ext', 'interior-exterior': 'cap-both'};
+        const selected = document.getElementById(scopeMap[S.capScope]);
+        if(selected) selected.checked = true;
+      }
+      scopeInputs.forEach(input => {
+        input.addEventListener('change', () => {
+          S.capScope = input.value;
+          save();
+          updateSidebar();
+        });
+      });
+
+      [address, areaInt, areaExt, areaBothInt, areaBothExt].forEach(el=>{
+        el.addEventListener('input', ()=> el.classList.remove('error'));
+      });
+
+      document.getElementById('estimateLink').addEventListener('click', (e)=>{
+        e.preventDefault();
+        alert('Demo: open article on estimating property size.');
+      });
+
+      /* -----------------------------
+         Update What's Included list
+      ------------------------------*/
+      function updateIncludedList() {
+        const list = document.getElementById('included-list');
+        const propType = document.querySelector('input[name="propType"]:checked')?.value || 'residential';
+        list.innerHTML = propType === 'commercial' ? commercialList.join('') : residentialList.join('');
+      }
+
+      /* -----------------------------
+         Step 2: Compact calendar (2 weeks view)
+      ------------------------------*/
+      let currentCalendarDate = new Date();
+      let selectedDate = null;
+      const today = new Date();
+
+      function buildCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const monthEl = document.getElementById('calendarMonth');
+
+        const year = currentCalendarDate.getFullYear();
+        const month = currentCalendarDate.getMonth();
+
+        // Limit navigation to current month and next month only
+        const maxDate = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+        const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const nextBtn = document.getElementById('nextMonth');
+        const prevBtn = document.getElementById('prevMonth');
+
+        // Calculate the start of the current 2-week period
+        const weekStart = new Date(currentCalendarDate);
+        const dayOfWeek = weekStart.getDay();
+        weekStart.setDate(weekStart.getDate() - dayOfWeek); // Start from Sunday
+
+        // Check if we can navigate forward/back
+        const twoWeeksForward = new Date(weekStart);
+        twoWeeksForward.setDate(twoWeeksForward.getDate() + 14);
+
+        nextBtn.disabled = twoWeeksForward > maxDate;
+        prevBtn.disabled = weekStart <= minDate;
+
+        // Display month/year or date range
+        const endWeek = new Date(weekStart);
+        endWeek.setDate(endWeek.getDate() + 13);
+
+        if (weekStart.getMonth() === endWeek.getMonth()) {
+          monthEl.textContent = weekStart.toLocaleDateString(undefined, { 
+            month: 'long', 
+            year: 'numeric' 
+          });
+        } else {
+          monthEl.textContent = `${weekStart.toLocaleDateString(undefined, { 
+            month: 'short', 
+            day: 'numeric' 
+          })} - ${endWeek.toLocaleDateString(undefined, { 
+            month: 'short', 
+            day: 'numeric',
+            year: 'numeric' 
+          })}`;
+        }
+
+        grid.innerHTML = '';
+
+        // Day headers
+        const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayHeaders.forEach(day => {
+          const header = document.createElement('div');
+          header.className = 'calendar-day-header';
+          header.textContent = day;
+          grid.appendChild(header);
+        });
+
+        const todayMidnight = new Date(today);
+        todayMidnight.setHours(0, 0, 0, 0);
+
+        // Generate only 2 weeks (14 days)
+        for (let i = 0; i < 14; i++) {
+          const date = new Date(weekStart);
+          date.setDate(weekStart.getDate() + i);
+
+          const dayEl = document.createElement('div');
+          dayEl.className = 'calendar-day';
+          dayEl.textContent = date.getDate();
+
+          const isToday = date.getTime() === todayMidnight.getTime();
+          const isPast = date < todayMidnight;
+          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+          const isBeyondLimit = date > maxDate;
+
+          // Business logic: available if not past, not weekend, and within 2 months
+          const isAvailable = !isPast && !isWeekend && !isBeyondLimit;
+
+          if (isPast || isBeyondLimit) {
+            dayEl.classList.add('disabled');
+          }
+
+          if (isToday) {
+            dayEl.classList.add('today');
+          }
+
+          if (isAvailable) {
+            dayEl.classList.add('available');
+            dayEl.addEventListener('click', () => selectDate(date));
+          }
+
+          if (selectedDate && date.getTime() === selectedDate.getTime()) {
+            dayEl.classList.add('selected');
+          }
+
+          grid.appendChild(dayEl);
+        }
+      }
+
+      function selectDate(date) {
+        selectedDate = new Date(date);
+        S.date = selectedDate.toISOString();
+        save();
+        buildCalendar();
+        updateScheduleSummary();
+      }
+
+      document.getElementById('prevMonth').addEventListener('click', () => {
+        // Move back 2 weeks
+        currentCalendarDate.setDate(currentCalendarDate.getDate() - 14);
+        buildCalendar();
+      });
+
+      document.getElementById('nextMonth').addEventListener('click', () => {
+        // Move forward 2 weeks
+        currentCalendarDate.setDate(currentCalendarDate.getDate() + 14);
+        buildCalendar();
+      });
+
+      // Initialize calendar
+      if (S.date) {
+        selectedDate = new Date(S.date);
+        currentCalendarDate = new Date(selectedDate);
+      }
+
+      const timeList = document.getElementById("timeList");
+      const scheduleSummary = document.getElementById("scheduleSummary");
+
+      function buildTimes(){
+        timeList.innerHTML = "";
+        // Any time from 8AM to 4PM
+        const times = [
+          "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM",
+          "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM",
+          "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM"
+        ];
+        times.forEach(t=>{
+          const b=document.createElement("button");
+          b.className="time"; b.type="button"; b.textContent=t;
+          if(S.time===t) b.dataset.selected="true";
+          b.addEventListener("click", ()=>{
+            Array.from(timeList.children).forEach(el=>el.removeAttribute("data-selected"));
+            b.dataset.selected="true";
+            S.time=t; save(); updateScheduleSummary();
+          });
+          timeList.appendChild(b);
+        });
+      }
+
+      function updateScheduleSummary(){
+        if(S.date && S.time){
+          const d = new Date(S.date);
+          scheduleSummary.textContent = `Scheduled for ${d.toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"})} at ${S.time}.`;
+        } else {
+          scheduleSummary.textContent = "";
+        }
+        updateSidebar();
+      }
+
+      buildCalendar();
+      buildTimes(); 
+      updateScheduleSummary();
+
+      /* -----------------------------
+         Step 3: contact with second contact
+      ------------------------------*/
+      const cname = document.getElementById("cname");
+      const cphone = document.getElementById("cphone");
+      const cname2 = document.getElementById("cname2");
+      const cphone2 = document.getElementById("cphone2");
+      const cemail = document.getElementById("cemail");
+      const access = document.getElementById("access");
+
+      [cname,cphone,cname2,cphone2,cemail,access].forEach(el=>{
+        el.value = S[el.name] || "";
+        el.addEventListener("input",()=>{ S[el.name]=el.value; save(); });
+      });
+
+      // Second contact toggle
+      window.toggleSecondContact = function() {
+        const checkbox = document.getElementById('addSecondContact');
+        const section = document.getElementById('secondContactSection');
+
+        if (checkbox.checked) {
+          section.classList.add('show');
+          S.hasSecondContact = true;
+        } else {
+          section.classList.remove('show');
+          S.hasSecondContact = false;
+          // Clear second contact data
+          S.contactName2 = '';
+          S.contactPhone2 = '';
+          cname2.value = '';
+          cphone2.value = '';
+        }
+        save();
+      };
+
+      // Restore second contact state
+      if (S.hasSecondContact) {
+        document.getElementById('addSecondContact').checked = true;
+        document.getElementById('secondContactSection').classList.add('show');
+      }
+
+      // Preparation link
+      document.getElementById('prepLink').addEventListener('click', (e) => {
+        e.preventDefault();
+        alert('Demo: open preparation guide for scans.');
+      });
+
+      /* -----------------------------
+         Review + sidebar updates
+      ------------------------------*/
+      function getScope(){
+        const sel = document.querySelector('input[name="capScope"]:checked');
+        return sel ? sel.value : null;
+      }
+
+      function calcPrice(){
+        // Simple demo pricing
+        const scope = getScope();
+        let i = 0, e = 0;
+        if(scope === 'interior'){ i = parseFloat(S.areaInt || 0) || 0; }
+        else if(scope === 'exterior'){ e = parseFloat(S.areaExt || 0) || 0; }
+        else if(scope === 'interior-exterior'){
+          i = parseFloat(S.areaBothInt || 0) || 0;
+          e = parseFloat(S.areaBothExt || 0) || 0;
+        }
+        const intPrice = i * 0.25;
+        const extPrice = e * 0.15;
+        let total = intPrice + extPrice;
+        if(i > 0 && e > 0) total *= 0.9; // discount for both
+        return { interior: intPrice, exterior: extPrice, total: Math.round(total * 100) / 100 };
+      }
+
+      function updateSidebar(route){
+        const currentRoute = route || (location.hash.replace(/^#\//,'') || "details");
+
+        // Show/hide contextual sidebar cards
+        const whatsIncluded = document.getElementById('whatsIncludedCard');
+        const scheduleChecklist = document.getElementById('scheduleChecklist');
+        const contactChecklist = document.getElementById('contactChecklist');
+        const reviewChecklist = document.getElementById('reviewChecklist');
+
+        // Hide all first
+        whatsIncluded.style.display = 'none';
+        scheduleChecklist.style.display = 'none';
+        contactChecklist.style.display = 'none';
+        reviewChecklist.style.display = 'none';
+
+        // Show relevant card based on current route
+        switch(currentRoute) {
+          case 'details':
+            whatsIncluded.style.display = 'block';
+            break;
+          case 'schedule':
+            scheduleChecklist.style.display = 'block';
+            break;
+          case 'contact':
+            contactChecklist.style.display = 'block';
+            break;
+          case 'review':
+            reviewChecklist.style.display = 'block';
+            break;
+        }
+
+        // Update price display
+        const scope = getScope();
+        const prices = calcPrice();
+
+        const intRow = document.getElementById('price-interior');
+        const extRow = document.getElementById('price-exterior');
+
+        if(scope === 'interior' && prices.interior > 0) {
+          intRow.style.display = 'flex';
+          intRow.querySelector('.price-value').textContent = `${prices.interior.toFixed(2)}`;
+          extRow.style.display = 'none';
+        } else if(scope === 'exterior' && prices.exterior > 0) {
+          extRow.style.display = 'flex';
+          extRow.querySelector('.price-value').textContent = `${prices.exterior.toFixed(2)}`;
+          intRow.style.display = 'none';
+        } else if(scope === 'interior-exterior') {
+          if(prices.interior > 0) {
+            intRow.style.display = 'flex';
+            intRow.querySelector('.price-value').textContent = `${prices.interior.toFixed(2)}`;
+          } else {
+            intRow.style.display = 'none';
+          }
+          if(prices.exterior > 0) {
+            extRow.style.display = 'flex';
+            extRow.querySelector('.price-value').textContent = `${prices.exterior.toFixed(2)}`;
+          } else {
+            extRow.style.display = 'none';
+          }
+        } else {
+          intRow.style.display = 'none';
+          extRow.style.display = 'none';
+        }
+
+        const fmt = (n) => n > 0 ? `${n.toFixed(2)}` : "$—";
+        document.getElementById("total").textContent = fmt(prices.total);
+      }
+
+      function renderReview(){
+        const scope = getScope();
+        let areaDisplay = "—";
+        if(scope === "interior") {
+          areaDisplay = `${S.areaInt || "—"} sq ft`;
+        } else if(scope === "exterior") {
+          areaDisplay = `${S.areaExt || "—"} sq ft`;
+        } else if(scope === "interior-exterior") {
+          areaDisplay = `${S.areaBothInt || "—"} / ${S.areaBothExt || "—"} sq ft`;
+        }
+
+        document.getElementById('rev-address').textContent = S.address || "—";
+        document.getElementById('rev-type').textContent = S.propType ? S.propType.charAt(0).toUpperCase() + S.propType.slice(1) : "—";
+        document.getElementById('rev-scope').textContent = scope ? scope.replace("interior-exterior", "Interior & Exterior").replace(/\b\w/g, l => l.toUpperCase()) : "—";
+        document.getElementById('rev-area').textContent = areaDisplay;
+        document.getElementById('rev-date').textContent = S.date ? new Date(S.date).toLocaleDateString(undefined, {weekday: "long", month: "long", day: "numeric"}) : "—";
+        document.getElementById('rev-time').textContent = S.time || "—";
+        document.getElementById('rev-contact').textContent = S.contactName || "—";
+        document.getElementById('rev-phone').textContent = S.contactPhone || "—";
+        document.getElementById('rev-email').textContent = S.contactEmail || "—";
+
+        // Second contact
+        const contact2Row = document.getElementById('rev-contact2-row');
+        const phone2Row = document.getElementById('rev-phone2-row');
+
+        if (S.hasSecondContact && (S.contactName2 || S.contactPhone2)) {
+          contact2Row.style.display = 'flex';
+          phone2Row.style.display = 'flex';
+          document.getElementById('rev-contact2').textContent = S.contactName2 || "—";
+          document.getElementById('rev-phone2').textContent = S.contactPhone2 || "—";
+        } else {
+          contact2Row.style.display = 'none';
+          phone2Row.style.display = 'none';
+        }
+      }
+
+      /* -----------------------------
+         Validation
+      ------------------------------*/
+      function validStep0(){
+        let ok = true;
+        address.classList.remove('error');
+        if(!address.value.trim()){ address.classList.add('error'); ok = false; }
+
+        [areaInt, areaExt, areaBothInt, areaBothExt].forEach(el=> el.classList.remove('error'));
+        const sel = document.querySelector('input[name="capScope"]:checked')?.value;
+
+        switch(sel){
+          case 'interior':
+            if(!(Number(areaInt.value)>0)){ areaInt.classList.add('error'); ok=false; }
+            break;
+          case 'exterior':
+            if(!(Number(areaExt.value)>0)){ areaExt.classList.add('error'); ok=false; }
+            break;
+          case 'interior-exterior':
+            if(!(Number(areaBothInt.value)>0)){ areaBothInt.classList.add('error'); ok=false; }
+            if(!(Number(areaBothExt.value)>0)){ areaBothExt.classList.add('error'); ok=false; }
+            break;
+        }
+        return ok;
+      }
+
+      /* -----------------------------
+         Sticky footer (mobile) & Desktop actions
+      ------------------------------*/
+      const stickyNext = document.getElementById("stickyNext");
+      const stickyBack = document.getElementById("stickyBack");
+      const desktopNext = document.getElementById("desktopNext");
+      const desktopBack = document.getElementById("desktopBack");
+
+      function currentRoute(){ return (location.hash.replace(/^#\//,'') || "details"); }
+      function nextOf(r){
+        const i = routes.indexOf(r); return routes[Math.min(routes.length-1, i+1)];
+      }
+      function prevOf(r){
+        const i = routes.indexOf(r); return routes[Math.max(0, i-1)];
+      }
+
+      function updateSticky(route){
+        const r = route || currentRoute();
+        const bar = document.getElementById('stickyBar');
+        const backBtn = document.getElementById('stickyBack');
+
+        bar.setAttribute('data-step', r);
+        backBtn.classList.toggle('hide', r === 'details');
+
+        stickyNext.textContent = (r==="review") ? "Place order" : "Next";
+      }
+
+      function updateDesktopActions(route){
+        const r = route || currentRoute();
+        desktopNext.textContent = (r==="review") ? "Place order" : "Next";
+        // Show back button after first step
+        desktopBack.style.display = (r === "details") ? "none" : "block";
+
+        // Update desktop next button ID for review step
+        if(r === "review") {
+          desktopNext.id = "desktopPlaceOrder";
+        } else {
+          desktopNext.id = "desktopNext";
+        }
+      }
+
+      // Mobile sticky actions
+      stickyNext.addEventListener("click", ()=>{
+        const r = currentRoute();
+        if(r==="details" && !validStep0()) return;
+        if(r==="schedule" && (!S.date || !S.time)){ alert("Please choose a date and time."); return; }
+        if(r==="review"){ 
+          const terms = document.getElementById('agree-terms').checked;
+          const payment = document.getElementById('agree-payment').checked;
+          if(!terms || !payment) {
+            alert("Please agree to the terms and payment authorization.");
+            return;
+          }
+          alert("Demo: order placed ✔"); 
+          return; 
+        }
+        location.hash = "#/"+ nextOf(r);
+      });
+
+      stickyBack.addEventListener("click", ()=>{
+        location.hash = "#/" + prevOf(currentRoute());
+      });
+
+      // Desktop actions
+      desktopNext.addEventListener("click", ()=>{
+        const r = currentRoute();
+        if(r==="details" && !validStep0()) return;
+        if(r==="schedule" && (!S.date || !S.time)){ alert("Please choose a date and time."); return; }
+        if(r==="review"){ 
+          const terms = document.getElementById('agree-terms').checked;
+          const payment = document.getElementById('agree-payment').checked;
+          if(!terms || !payment) {
+            alert("Please agree to the terms and payment authorization.");
+            return;
+          }
+          alert("Demo: order placed ✔"); 
+          return; 
+        }
+        location.hash = "#/"+ nextOf(r);
+      });
+
+      desktopBack.addEventListener("click", ()=>{
+        location.hash = "#/" + prevOf(currentRoute());
+      });
+
+      // Desktop next/back buttons within cards
+      document.addEventListener("click", (e)=>{
+        const next = e.target.closest("[data-next]");
+        const prev = e.target.closest("[data-prev]");
+        if(next){ 
+          if(currentRoute()==="details" && !validStep0()) return;
+          if(currentRoute()==="schedule" && (!S.date || !S.time)){ alert("Please choose a date and time."); return; }
+          location.hash = "#/" + next.dataset.next; 
+        }
+        if(prev){ location.hash = "#/" + prev.dataset.prev; }
+      });
+
+      document.getElementById("placeOrderBtn").addEventListener("click", ()=> {
+        const terms = document.getElementById('agree-terms').checked;
+        const payment = document.getElementById('agree-payment').checked;
+        if(!terms || !payment) {
+          alert("Please agree to the terms and payment authorization.");
+          return;
+        }
+        alert("Demo: order placed ✔");
+      });
+
+      // Initialize on load
+      updateSidebar();
+      updateIncludedList();
+      updateDesktopActions();
+    })();
+  </script>
+</body>
+</html>
