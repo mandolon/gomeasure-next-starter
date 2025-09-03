@@ -100,3 +100,28 @@ export function useOrder() {
   if (!context) throw new Error('useOrder must be used within OrderProvider');
   return context;
 }
+
+// Calculate pricing based on state
+export function calcPrice(state: OrderState) {
+  let interior = 0, exterior = 0;
+  
+  if (state.capScope === 'interior') {
+    interior = state.areaInt * 0.25;
+  } else if (state.capScope === 'exterior') {
+    exterior = state.areaExt * 0.15;
+  } else if (state.capScope === 'interior-exterior') {
+    interior = state.areaBothInt * 0.25;
+    exterior = state.areaBothExt * 0.15;
+  }
+  
+  let total = interior + exterior;
+  if (interior > 0 && exterior > 0) {
+    total *= 0.9; // discount for both
+  }
+  
+  return {
+    interior: Math.round(interior * 100) / 100,
+    exterior: Math.round(exterior * 100) / 100,
+    total: Math.round(total * 100) / 100
+  };
+}
