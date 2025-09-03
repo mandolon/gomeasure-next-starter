@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
-import Script from "next/script";
+// app/layout.tsx
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GoMeasure Order",
-  description: "Complete your capture service order",
+  title: "GoMeasure",
+  description: "Professional 3D scanning services",
 };
 
-export const viewport = {
+export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -21,38 +21,33 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <link
           href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
-
-        {/* Leaflet CSS */}
         <link
           rel="stylesheet"
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          crossOrigin=""
         />
         <link
           rel="stylesheet"
           href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"
+          crossOrigin=""
         />
-      </head>
-      <body>
-        {children}
-
-        {/* Load scripts with Next.js Script component for better performance */}
-        <Script
+        <script
           src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          strategy="lazyOnload"
-        />
-        <Script
+          defer
+        ></script>
+        <script
           src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"
-          strategy="lazyOnload"
-        />
-        <Script src="https://unpkg.com/esri-leaflet" strategy="lazyOnload" />
-      </body>
+          defer
+        ></script>
+        <script src="https://unpkg.com/esri-leaflet" defer></script>
+      </head>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

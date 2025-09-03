@@ -1,22 +1,23 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import dynamic from 'next/dynamic';
+import { useState } from "react";
+import dynamic from "next/dynamic";
 
-// Dynamically import LeafletMap to avoid SSR issues
-const LeafletMap = dynamic(() => import('./LeafletMap'), {
+const LeafletMap = dynamic(() => import("./LeafletMap"), {
   ssr: false,
   loading: () => (
-    <div style={{ 
-      width: '100%', 
-      height: '400px', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      background: '#f0f0f0',
-      border: '1px solid var(--line)',
-      borderRadius: '10px'
-    }}>
+    <div
+      style={{
+        width: "100%",
+        height: "400px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f0f0f0",
+        border: "1px solid var(--line)",
+        borderRadius: "10px",
+      }}
+    >
       Loading map...
     </div>
   ),
@@ -27,7 +28,10 @@ interface PropertyMapProps {
   onAreaMeasured: (area: number) => void;
 }
 
-export default function PropertyMap({ address, onAreaMeasured }: PropertyMapProps) {
+export default function PropertyMap({
+  address,
+  onAreaMeasured,
+}: PropertyMapProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [measuredArea, setMeasuredArea] = useState(0);
 
@@ -43,28 +47,27 @@ export default function PropertyMap({ address, onAreaMeasured }: PropertyMapProp
   return (
     <>
       <div className="map-toggle">
-        <button 
+        <button
           type="button"
           className="map-toggle-btn"
           onClick={() => setIsOpen(!isOpen)}
         >
-          {isOpen ? 'Close map' : 'Measure on map'}
+          {isOpen ? "Close map" : "Measure on map"}
         </button>
       </div>
 
       {isOpen && (
         <div className="map-wrap open">
-          <div className="map-instructions">Draw a polygon around your property</div>
-          <LeafletMap 
-            address={address}
-            onAreaMeasured={handleAreaMeasured}
-          />
+          <div className="map-instructions">
+            Draw a polygon around your property
+          </div>
+          <LeafletMap address={address} onAreaMeasured={handleAreaMeasured} />
           <div className="map-results">
             <div className="measured-value">
               <span>{measuredArea.toLocaleString()}</span> sq ft
             </div>
-            <button 
-              className="btn-save" 
+            <button
+              className="btn-save"
               type="button"
               onClick={handleSaveArea}
               disabled={measuredArea === 0}
