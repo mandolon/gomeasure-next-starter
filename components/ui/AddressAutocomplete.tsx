@@ -145,8 +145,15 @@ export default function AddressAutocomplete({ value, onChange }: AddressAutocomp
     if (address.road) streetParts.push(address.road);
     const primary = streetParts.join(' ');
     
-    // Format as: CA zipcode
-    const secondary = `CA ${address.postcode || ''}`.trim();
+    // Format as: city, CA zipcode
+    const secondaryParts = [];
+    if (address.city || address.town || address.village) {
+      secondaryParts.push(address.city || address.town || address.village);
+    }
+    secondaryParts.push('CA');
+    if (address.postcode) secondaryParts.push(address.postcode);
+    
+    const secondary = secondaryParts.join(' ');
     
     return { primary, secondary };
   };
