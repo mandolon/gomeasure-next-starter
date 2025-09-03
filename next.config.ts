@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
     allowedRevalidateHeaderKeys: []
   },
   // Configure allowed dev origins for Replit environment
-  allowedDevOrigins: ['127.0.0.1', 'localhost']
+  allowedDevOrigins: ['127.0.0.1', 'localhost', '*.replit.dev', '*.repl.co']
 };
 
 export default nextConfig;
