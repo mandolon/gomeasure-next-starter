@@ -1,42 +1,72 @@
 'use client';
 import StepNav from '../components/StepNav';
 import { useOrder } from '../context';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useMap } from '../hooks/useMap';
+import { useAddressAutocomplete } from '../hooks/useAddressAutocomplete';
 
 export default function PropertyPage() {
   const { state, updateState } = useOrder();
-  const [mapVisible, setMapVisible] = useState(false);
-  const [currentSqFt, setCurrentSqFt] = useState(0);
-  const [autocompleteItems, setAutocompleteItems] = useState<any[]>([]);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  
+  const { mapRef, currentSqFt, centerOnAddress, invalidateSize } = useMap();
+  const { 
+    results, 
+    isVisible, 
+    activeIndex, 
+    search, 
+    hide, 
+    show, 
+    highlight, 
+    selectByIndex, 
+    handleKeyDown 
+  } = useAddressAutocomplete();
 
-  // Address autocomplete
-  const handleAddressChange = async (value: string) => {
+  // Handle address input changes with debounce
+  const handleAddressChange = (value: string) => {
     updateState({ address: value });
     
-    if (value.length > 3) {
-      try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=us&limit=8&q=${encodeURIComponent(value + ', California')}`);
-        const results = await response.json();
-        setAutocompleteItems(results.slice(0, 5));
-        setShowAutocomplete(true);
-      } catch (e) {
-        setAutocompleteItems([]);
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+    
+    const timeout = setTimeout(() => {
+      search(value);
+    }, 300);
+    
+    setDebounceTimeout(timeout);
+  };
+
+  // Handle address selection
+  const handleAddressSelect = (index: number) => {
+    const result = selectByIndex(index);
+    if (result) {
+      updateState({ address: result.formattedAddress });
+      
+      // Auto-open map and center on address
+      const mapWrap = document.getElementById('mapWrap');
+      if (mapWrap && !mapWrap.classList.contains('open')) {
+        mapWrap.classList.add('open');
+        invalidateSize();
       }
-    } else {
-      setShowAutocomplete(false);
+      
+      // Center map on selected address after a short delay
+      setTimeout(() => {
+        centerOnAddress(parseFloat(result.lat), parseFloat(result.lon));
+      }, 200);
     }
   };
 
-  const selectAddress = (item: any) => {
-    const displayName = item.display_name.replace(', United States', '');
-    updateState({ address: displayName });
-    setShowAutocomplete(false);
-    setAutocompleteItems([]);
-  };
-
   const toggleMap = () => {
-    setMapVisible(!mapVisible);
+    const mapWrap = document.getElementById('mapWrap');
+    if (mapWrap) {
+      const isOpen = !mapWrap.classList.contains('open');
+      mapWrap.classList.toggle('open', isOpen);
+      if (isOpen) {
+        invalidateSize();
+      }
+    }
   };
 
   const saveMapArea = () => {
@@ -58,8 +88,41 @@ export default function PropertyPage() {
         updateState({ areaExt: currentSqFt });
       }
     }
-    setCurrentSqFt(0);
+    
+    // Close map
+    const mapWrap = document.getElementById('mapWrap');
+    if (mapWrap) mapWrap.classList.remove('open');
   };
+
+  // Handle keyboard navigation for autocomplete
+  const handleAddressKeyDown = (e: React.KeyboardEvent) => {
+    const result = handleKeyDown(e);
+    if (result) {
+      handleAddressSelect(results.indexOf(result));
+    }
+  };
+
+  // Update area display
+  useEffect(() => {
+    const areaOut = document.getElementById('areaOut');
+    if (areaOut) {
+      const fmt = (n: number) => (Math.round(n*10)/10).toLocaleString();
+      areaOut.textContent = fmt(currentSqFt);
+    }
+  }, [currentSqFt]);
+
+  // Handle clicks outside autocomplete
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const ac = document.getElementById('ac');
+      if (ac && !ac.contains(e.target as Node)) {
+        hide();
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [hide]);
 
   const handleEstimateLink = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -78,44 +141,58 @@ export default function PropertyPage() {
       
       <div className="ac-wrap" id="ac">
         <input
+          ref={addressInputRef}
           id="address"
           className="input"
           type="text"
           value={state.address}
           onChange={(e) => handleAddressChange(e.target.value)}
+          onKeyDown={handleAddressKeyDown}
+          onFocus={show}
           placeholder="Start typing your address..."
-          autoComplete="street-address"
+          autoComplete="off"
           aria-autocomplete="list"
-          aria-expanded={showAutocomplete}
+          aria-expanded={isVisible}
+          aria-activedescendant={activeIndex >= 0 ? `addr-opt-${activeIndex}` : undefined}
           role="combobox"
           required
         />
         
-        {showAutocomplete && autocompleteItems.length > 0 && (
-          <div id="addr-list" className="ac-panel" role="listbox" aria-label="Address suggestions" style={{ display: 'block' }}>
-            {autocompleteItems.map((item, idx) => (
+        <div 
+          id="addr-list" 
+          className="ac-panel" 
+          role="listbox" 
+          aria-label="Address suggestions" 
+          style={{ display: isVisible ? 'block' : 'none' }}
+        >
+          {results.length === 0 && isVisible ? (
+            <div className="ac-item" style={{ cursor: 'default' }}>
+              <div className="ac-text">
+                <div className="ac-sub">No results found</div>
+              </div>
+            </div>
+          ) : (
+            results.map((result, idx) => (
               <div
                 key={idx}
-                className="ac-item"
-                onClick={() => selectAddress(item)}
+                className={`ac-item ${activeIndex === idx ? 'is-active' : ''}`}
                 role="option"
+                id={`addr-opt-${idx}`}
+                onMouseEnter={() => highlight(idx)}
+                onMouseLeave={() => highlight(-1)}
+                onClick={() => handleAddressSelect(idx)}
               >
-                <svg className="ac-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                  <circle cx="12" cy="10" r="3"/>
+                <svg className="ac-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                 </svg>
                 <div className="ac-text">
-                  <div className="ac-title">
-                    {item.display_name.split(',')[0]}
-                  </div>
-                  <div className="ac-sub">
-                    {item.display_name.replace(', United States', '')}
-                  </div>
+                  <div className="ac-title">{result.primary}</div>
+                  <div className="ac-sub">{result.city}, CA{result.zip ? ' ' + result.zip : ''}</div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
 
       {/* Section 2: Property Type */}
@@ -302,9 +379,9 @@ export default function PropertyPage() {
       </div>
 
       {/* Map */}
-      <div id="mapWrap" className={`map-wrap ${mapVisible ? 'open' : ''}`}>
+      <div id="mapWrap" className="map-wrap">
         <div className="map-instructions">Draw a polygon around your property</div>
-        <div id="map"></div>
+        <div ref={mapRef} id="map"></div>
         
         <div className="map-results">
           <div className="measured-value"><span id="areaOut">{currentSqFt}</span> sq ft</div>

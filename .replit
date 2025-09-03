@@ -18,6 +18,10 @@ deploymentTarget = "autoscale"
 localPort = 3002
 externalPort = 3002
 
+[[ports]]
+localPort = 5000
+externalPort = 80
+
 [workflows]
 runButton = "Project"
 
@@ -50,7 +54,7 @@ outputType = "webview"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
-waitForPort = 3002
+waitForPort = 5000
 
 [agent]
 expertMode = true
