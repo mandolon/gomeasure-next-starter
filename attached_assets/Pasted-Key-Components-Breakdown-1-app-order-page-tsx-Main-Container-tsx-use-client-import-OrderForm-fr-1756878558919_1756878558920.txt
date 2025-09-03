@@ -1,0 +1,96 @@
+Key Components Breakdown
+1. app/order/page.tsx - Main Container
+tsx'use client';
+import OrderForm from '@/components/order/OrderForm';
+
+export default function OrderPage() {
+  return <OrderForm />;
+}
+2. components/order/OrderForm.tsx - Orchestrator
+tsx// Manages state, step navigation, and validation
+// Contains the routing logic from your HTML
+3. State Management Approach
+Instead of sessionStorage (HTML version), use one of:
+
+React Context API with reducer
+Zustand (lightweight state management)
+Custom hook with localStorage sync
+
+4. Type Definitions (lib/types.ts)
+tsxinterface OrderFormData {
+  // Property Details
+  address: string;
+  propertyType: 'residential' | 'commercial';
+  captureScope: 'interior' | 'exterior' | 'interior-exterior';
+  areaInt?: number;
+  areaExt?: number;
+  areaBothInt?: number;
+  areaBothExt?: number;
+  
+  // Schedule
+  date?: string;
+  time?: string;
+  
+  // Contact
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  contactName2?: string;
+  contactPhone2?: string;
+  hasSecondContact: boolean;
+  accessInstructions?: string;
+  
+  // Review
+  agreedToTerms: boolean;
+  agreedToPayment: boolean;
+}
+5. Key Implementation Details
+Router Strategy:
+
+Replace hash routing (#/details, #/schedule) with state-based rendering
+Use query params for direct linking: /order?step=schedule
+
+CSS Strategy:
+
+Move CSS variables to app/globals.css
+Use CSS Modules for component-specific styles
+Or use Tailwind CSS classes matching your design tokens
+
+Data Persistence:
+
+Replace sessionStorage with a custom hook that syncs to localStorage
+Or use URL state for form data (searchParams)
+
+6. Migration Checklist
+
+Global Styles - Extract all CSS from HTML <style> tag to app/globals.css
+Component Mapping:
+
+<section data-route="details"> → PropertyDetails.tsx
+<section data-route="schedule"> → Schedule.tsx
+<section data-route="contact"> → Contact.tsx
+<section data-route="review"> → Review.tsx
+
+
+Shared UI Components:
+
+Navigation breadcrumbs → StepNavigation.tsx
+Mobile sticky bar → StickyFooter.tsx
+Sidebar cards → OrderSidebar.tsx
+
+
+Script Functions → React Hooks:
+
+updateSidebar() → useSidebarContent() hook
+calcPrice() → usePricing() hook
+Validation logic → useValidation() hook
+
+
+Event Handlers:
+
+Convert inline onclick to React onClick
+Replace addEventListener with React event props
+
+
+
+This structure maintains the same functionality as your HTML version while following Next.js best practices and making the code more maintainable and type-safe.
